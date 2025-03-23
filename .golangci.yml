@@ -1,0 +1,30 @@
+linters:
+  enable:
+    - "bodyclose"
+    - "copyloopvar"
+    - "errcheck"
+    - "gci"
+    - "gofumpt"
+    - "goheader"
+    - "gosec"
+    - "gosimple"
+    - "govet"
+    - "ineffassign"
+    - "nilerr"
+    - "predeclared"
+    - "revive"
+    - "staticcheck"
+    - "tparallel"
+    - "unconvert"
+    - "unused"
+    - "unparam"
+    - "whitespace"
+
+linters-settings:
+  # Enforces import order in Go source files
+  gci:
+    sections:
+      - "standard"
+      - "default"
+      - "localmodule"
+    custom-order: true

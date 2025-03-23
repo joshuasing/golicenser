@@ -1,0 +1,9 @@
+# Project
+_bench/
+bin/
+dist/
+
+# Common editors
+.idea/
+*.iml
+.vscode/
