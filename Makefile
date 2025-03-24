@@ -43,6 +43,10 @@ build:
 	go build ./...
 	go build -trimpath -ldflags '-s -w' -o ./bin/golicenser ./cmd/golicenser
 
+.PHONY: run
+run: build
+	./bin/golicenser -year-mode=git-range -tmpl=MIT -author='Joshua Sing <joshua@joshuasing.dev>' -fix ./...
+
 .PHONY: test
 test:
 	go test ./...
