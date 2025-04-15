@@ -80,10 +80,9 @@ func init() {
 // TODO(joshuasing): There has to be a better way of doing this...
 
 var analyzer = &analysis.Analyzer{
-	Name:  "golicenser",
-	Doc:   "manages license headers",
-	URL:   "https://github.com/joshuasing/golicenser",
-	Flags: flagSet,
+	Name: "golicenser",
+	Doc:  "manages license headers",
+	URL:  "https://github.com/joshuasing/golicenser",
 	Run: func(pass *analysis.Pass) (any, error) {
 		var err error
 		if template == "" {
@@ -160,5 +159,6 @@ var analyzer = &analysis.Analyzer{
 }
 
 func main() {
+	analyzer.Flags = flagSet
 	singlechecker.Main(analyzer)
 }
