@@ -24,7 +24,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"maps"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -221,13 +220,23 @@ type Header struct {
 	matcher *regexp.Regexp
 
 	author       string
-	variables    map[string]any
+	variables    map[string]Var
 	yearMode     YearMode
 	commentStyle CommentStyle
 }
 
 var tmplFuncMap = template.FuncMap{
 	"basename": filepath.Base,
+}
+
+// Var is a template variable.
+type Var struct {
+	// Value is the variable value.
+	Value string
+
+	// Regexp is a regexp used to match the variable value.
+	// If empty, the regexp-escaped value of Value will be used.
+	Regexp string
 }
 
 // HeaderOpts are the options for creating a license header.
@@ -237,7 +246,7 @@ type HeaderOpts struct {
 	MatcherEscape bool
 	Author        string
 	AuthorRegexp  string
-	Variables     map[string]any
+	Variables     map[string]Var
 	YearMode      YearMode
 	CommentStyle  CommentStyle
 }
@@ -264,9 +273,21 @@ func NewHeader(opts HeaderOpts) (*Header, error) {
 		"filename": "test",
 		"year":     "2025",
 	}
-	maps.Copy(m, opts.Variables)
+	addVariables(m, opts.Variables)
 	if err = t.Execute(io.Discard, m); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
+	}
+
+	// Test compiling variable regexps.
+	for name, v := range opts.Variables {
+		switch v.Regexp {
+		case "":
+			v.Regexp = regexp.QuoteMeta(v.Value)
+		default:
+			if _, err = regexp.Compile(v.Regexp); err != nil {
+				return nil, fmt.Errorf("compile %q regexp: %w", name, err)
+			}
+		}
 	}
 
 	// Create author regexp
@@ -284,15 +305,15 @@ func NewHeader(opts HeaderOpts) (*Header, error) {
 		mt, err := template.New("").Funcs(tmplFuncMap).
 			Option("missingkey=error").Parse(opts.Matcher)
 		if err != nil {
-			return nil, fmt.Errorf("new match template: %w", err)
+			return nil, fmt.Errorf("new matcher template: %w", err)
 		}
 		matcher, err = headerMatcher(mt, opts.MatcherEscape, authorRegexp, opts.Variables)
 		if err != nil {
-			return nil, fmt.Errorf("create header matcher (with match template): %w", err)
+			return nil, fmt.Errorf("create header matcher: %w", err)
 		}
 	} else {
-		// If a match template wasn't provided, create a matcher using the
-		// header template (regexp-escaped).
+		// If a matcher wasn't provided, create a matcher using the header
+		// template (regexp-escaped).
 		matcher, err = headerMatcher(t, true, authorRegexp, opts.Variables)
 		if err != nil {
 			return nil, fmt.Errorf("create header matcher: %w", err)
@@ -399,7 +420,7 @@ func (h *Header) render(filename, year string) (string, error) {
 		"filename": filename,
 		"year":     year,
 	}
-	maps.Copy(m, h.variables)
+	addVariables(m, h.variables)
 
 	var b bytes.Buffer
 	if err := h.tmpl.Execute(&b, m); err != nil {
@@ -408,13 +429,21 @@ func (h *Header) render(filename, year string) (string, error) {
 	return b.String(), nil
 }
 
-func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regexp.Regexp, variables map[string]any) (*regexp.Regexp, error) {
-	m := map[string]any{
-		"author":   "__AUTHOR__",
-		"filename": "__FILENAME__",
-		"year":     "__YEAR__",
+func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regexp.Regexp, variables map[string]Var) (*regexp.Regexp, error) {
+	m := map[string]string{
+		"author":   "__VAR_author__",
+		"filename": "__VAR_filename__",
+		"year":     "__VAR_year__",
 	}
-	maps.Copy(m, variables)
+	regexps := map[string]string{
+		"author":   authorRegexp.String(),
+		"filename": "(?P<filename>.+)",
+		"year":     regexpYears.String(),
+	}
+	for k, v := range variables {
+		m[k] = "__VAR_" + k + "__"
+		regexps[k] = v.Regexp
+	}
 
 	// Execute matcher template.
 	var b bytes.Buffer
@@ -422,18 +451,25 @@ func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regex
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	headerExpr := b.String()
+
+	// Optionally escape the rendered template.
 	if escapeTmpl {
 		headerExpr = regexp.QuoteMeta(b.String())
 	}
 
-	// Insert regexp matchers here, as there is a chance we escape the
-	// headerExpr above.
-	expr := strings.NewReplacer(
-		"__AUTHOR__", authorRegexp.String(),
-		"__FILENAME__", "(?P<filename>.+)",
-		"__YEAR__", regexpYears.String(),
-	).Replace(headerExpr)
+	// Replace variable placeholders with regexp expressions.
+	replacements := make([]string, 0, len(m)*2)
+	for k, v := range m {
+		replacements = append(replacements, v, regexps[k])
+	}
+	headerExpr = strings.NewReplacer(replacements...).Replace(headerExpr)
 
-	// Compile header matching regexp.
-	return regexp.Compile(expr)
+	// Compile header matcher regexp.
+	return regexp.Compile(headerExpr)
+}
+
+func addVariables(m map[string]any, vars map[string]Var) {
+	for k, v := range vars {
+		m[k] = v.Value
+	}
 }

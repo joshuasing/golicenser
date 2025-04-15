@@ -101,7 +101,7 @@ var analyzer = &analysis.Analyzer{
 			//nolint:gosec // Reading user-defined file.
 			b, err := os.ReadFile(matcherFile)
 			if err != nil {
-				log.Fatal("read match template file: ", err)
+				log.Fatal("read matcher file: ", err)
 			}
 			matcher = string(b)
 		} else {
@@ -111,14 +111,14 @@ var analyzer = &analysis.Analyzer{
 		}
 
 		// Parse variables
-		vars := make(map[string]any)
+		vars := make(map[string]golicenser.Var)
 		if variables != "" {
 			for _, v := range strings.Split(variables, ",") {
 				parts := strings.SplitN(v, "=", 2)
 				if len(parts) != 2 {
-					log.Fatal("invalid variable: ", v)
+					log.Fatal("invalid variable:", v)
 				}
-				vars[parts[0]] = parts[1]
+				vars[parts[0]] = golicenser.Var{Value: parts[1]}
 			}
 		}
 
