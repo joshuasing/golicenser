@@ -41,7 +41,7 @@ var (
 	templateFile        string
 	matchTemplate       string
 	matchTemplateFile   string
-	matchTemplateRegexp bool
+	matchTemplateEscape bool
 	author              string
 	authorRegexp        string
 	variables           string
@@ -62,8 +62,8 @@ func setupFlags() {
 		"Match license header template")
 	flag.StringVar(&matchTemplateFile, "match-tmpl-file", "",
 		"Match license header template file (used to detect existing license headers which may be updated)")
-	flag.BoolVar(&matchTemplateRegexp, "match-tmpl-regexp", false,
-		"Whether the provided match template is a regexp expression")
+	flag.BoolVar(&matchTemplateEscape, "match-tmpl-escape", false,
+		"Whether to regexp-escape the match-tmpl")
 	flag.StringVar(&author, "author", "", "Copyright author")
 	flag.StringVar(&authorRegexp, "author-regexp", "",
 		"Regexp to match copyright author (default: match author)")
@@ -142,14 +142,14 @@ var analyzer = &analysis.Analyzer{
 
 		a, err := golicenser.NewAnalyzer(golicenser.Config{
 			Header: golicenser.HeaderOpts{
-				Template:                   template,
-				MatchTemplate:              matchTemplate,
-				MatchTemplateEscapeDisable: matchTemplateRegexp,
-				Author:                     author,
-				AuthorRegexp:               authorRegexp,
-				Variables:                  vars,
-				YearMode:                   yearMode,
-				CommentStyle:               commentStyle,
+				Template:            template,
+				MatchTemplate:       matchTemplate,
+				MatchTemplateEscape: matchTemplateEscape,
+				Author:              author,
+				AuthorRegexp:        authorRegexp,
+				Variables:           vars,
+				YearMode:            yearMode,
+				CommentStyle:        commentStyle,
 			},
 			Exclude:           strings.Split(exclude, ","),
 			MaxConcurrent:     maxConcurrent,
