@@ -281,9 +281,10 @@ func TestHeaderUpdate(t *testing.T) {
 		{
 			name: "change MIT to OpenBSD",
 			header: HeaderOpts{
-				Template:      LicenseOpenBSD,
-				MatchTemplate: LicenseMIT,
-				Author:        "Joshua Sing",
+				Template:            LicenseOpenBSD,
+				MatchTemplate:       LicenseMIT,
+				MatchTemplateEscape: true,
+				Author:              "Joshua Sing",
 			},
 			wantModified: true,
 			existing: `// Copyright (c) 2025 Joshua Sing
