@@ -215,7 +215,11 @@ func TestHeaderCreate(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewHeader err = %v, want err %v", err, tt.wantErr)
 			}
-			if got := h.Create(tt.filename); got != tt.want {
+			header, err := h.Create(tt.filename)
+			if err != nil {
+				t.Errorf("h.Create(%q) err = %v, want nil", header, err)
+			}
+			if got := header; got != tt.want {
 				t.Errorf("h.Create(%q) = %q, want %q", tt.filename, got, tt.want)
 			}
 		})
@@ -324,7 +328,10 @@ func TestHeaderUpdate(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewHeader err = %v, want err %v", err, tt.wantErr)
 			}
-			got, modified := h.Update(tt.filename, tt.existing)
+			got, modified, err := h.Update(tt.filename, tt.existing)
+			if err != nil {
+				t.Errorf("h.Update() err = %v, want nil", err)
+			}
 			if modified != tt.wantModified {
 				t.Errorf("h.Update() modified = %v, want %v",
 					modified, tt.wantModified)

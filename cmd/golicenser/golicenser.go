@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// Package main provides a CLI for running golicenser.
 package main
 
 import (
@@ -25,6 +26,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
@@ -50,7 +52,9 @@ var (
 	matchHeaderRegexp   string
 )
 
-func init() {
+var setupFlagsOnce = sync.OnceFunc(setupFlags)
+
+func setupFlags() {
 	flag.StringVar(&template, "tmpl", "", "License header template")
 	flag.StringVar(&templateFile, "tmpl-file", "license_header.txt",
 		"License header template file")
@@ -84,8 +88,11 @@ var analyzer = &analysis.Analyzer{
 	URL:   "https://github.com/joshuasing/golicenser",
 	Flags: flagSet,
 	Run: func(pass *analysis.Pass) (any, error) {
+		setupFlagsOnce()
+
 		var err error
 		if template == "" {
+			//nolint:gosec // Reading user-defined file.
 			b, err := os.ReadFile(templateFile)
 			if err != nil {
 				log.Fatal("read template file: ", err)
@@ -97,6 +104,7 @@ var analyzer = &analysis.Analyzer{
 			}
 		}
 		if matchTemplate == "" && matchTemplateFile != "" {
+			//nolint:gosec // Reading user-defined file.
 			b, err := os.ReadFile(matchTemplateFile)
 			if err != nil {
 				log.Fatal("read match template file: ", err)
