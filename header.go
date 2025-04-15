@@ -232,14 +232,14 @@ var tmplFuncMap = template.FuncMap{
 
 // HeaderOpts are the options for creating a license header.
 type HeaderOpts struct {
-	Template            string
-	MatchTemplate       string
-	MatchTemplateEscape bool
-	Author              string
-	AuthorRegexp        string
-	Variables           map[string]any
-	YearMode            YearMode
-	CommentStyle        CommentStyle
+	Template      string
+	Matcher       string
+	MatcherEscape bool
+	Author        string
+	AuthorRegexp  string
+	Variables     map[string]any
+	YearMode      YearMode
+	CommentStyle  CommentStyle
 }
 
 // NewHeader creates a new header with the given options.
@@ -280,13 +280,13 @@ func NewHeader(opts HeaderOpts) (*Header, error) {
 	}
 
 	var matcher *regexp.Regexp
-	if opts.MatchTemplate != "" {
+	if opts.Matcher != "" {
 		mt, err := template.New("").Funcs(tmplFuncMap).
-			Option("missingkey=error").Parse(opts.MatchTemplate)
+			Option("missingkey=error").Parse(opts.Matcher)
 		if err != nil {
 			return nil, fmt.Errorf("new match template: %w", err)
 		}
-		matcher, err = headerMatcher(mt, opts.MatchTemplateEscape, authorRegexp, opts.Variables)
+		matcher, err = headerMatcher(mt, opts.MatcherEscape, authorRegexp, opts.Variables)
 		if err != nil {
 			return nil, fmt.Errorf("create header matcher (with match template): %w", err)
 		}

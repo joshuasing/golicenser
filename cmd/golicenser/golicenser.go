@@ -36,31 +36,31 @@ import (
 var flagSet flag.FlagSet
 
 var (
-	template            string
-	templateFile        string
-	matchTemplate       string
-	matchTemplateFile   string
-	matchTemplateEscape bool
-	author              string
-	authorRegexp        string
-	variables           string
-	yearModeStr         string
-	commentStyleStr     string
-	exclude             string
-	maxConcurrent       int
-	matchHeaderRegexp   string
+	template          string
+	templateFile      string
+	matcher           string
+	matcherFile       string
+	matcherEscape     bool
+	author            string
+	authorRegexp      string
+	variables         string
+	yearModeStr       string
+	commentStyleStr   string
+	exclude           string
+	maxConcurrent     int
+	matchHeaderRegexp string
 )
 
 func init() {
 	flagSet.StringVar(&template, "tmpl", "", "License header template")
 	flagSet.StringVar(&templateFile, "tmpl-file", "license_header.txt",
 		"License header template file")
-	flagSet.StringVar(&matchTemplate, "match-tmpl", "",
-		"Match license header template")
-	flagSet.StringVar(&matchTemplateFile, "match-tmpl-file", "",
-		"Match license header template file (used to detect existing license headers which may be updated)")
-	flagSet.BoolVar(&matchTemplateEscape, "match-tmpl-escape", false,
-		"Whether to regexp-escape the match-tmpl")
+	flagSet.StringVar(&matcher, "matcher", "",
+		"License header matcher (This is template, when executed it must become valid regexp)")
+	flagSet.StringVar(&matcherFile, "matcher-file", "",
+		"License header matcher file)")
+	flagSet.BoolVar(&matcherEscape, "matcher-escape", false,
+		"Whether to regexp-escape the matcher")
 	flagSet.StringVar(&author, "author", "", "Copyright author")
 	flagSet.StringVar(&authorRegexp, "author-regexp", "",
 		"Regexp to match copyright author (default: match author)")
@@ -73,8 +73,8 @@ func init() {
 		"Paths to exclude (doublestar or r!-prefixed regexp, comma-separated)")
 	flagSet.IntVar(&maxConcurrent, "max-concurrent", golicenser.DefaultMaxConcurrent,
 		"Maximum concurrent processes to use when processing files")
-	flagSet.StringVar(&matchHeaderRegexp, "match-header-regexp", golicenser.DefaultMatchHeaderRegexp,
-		"Match header regexp (used to detect any copyright headers)")
+	flagSet.StringVar(&matchHeaderRegexp, "header-matcher", golicenser.DefaultMatchHeaderRegexp,
+		"Header matcher regexp (used to detect any copyright headers)")
 }
 
 // TODO(joshuasing): There has to be a better way of doing this...
@@ -97,16 +97,16 @@ var analyzer = &analysis.Analyzer{
 				template = tm
 			}
 		}
-		if matchTemplate == "" && matchTemplateFile != "" {
+		if matcher == "" && matcherFile != "" {
 			//nolint:gosec // Reading user-defined file.
-			b, err := os.ReadFile(matchTemplateFile)
+			b, err := os.ReadFile(matcherFile)
 			if err != nil {
 				log.Fatal("read match template file: ", err)
 			}
-			matchTemplate = string(b)
+			matcher = string(b)
 		} else {
-			if tm, ok := golicenser.TemplateBySPDX(matchTemplate); ok {
-				matchTemplate = tm
+			if tm, ok := golicenser.TemplateBySPDX(matcher); ok {
+				matcher = tm
 			}
 		}
 
@@ -136,18 +136,18 @@ var analyzer = &analysis.Analyzer{
 
 		a, err := golicenser.NewAnalyzer(golicenser.Config{
 			Header: golicenser.HeaderOpts{
-				Template:            template,
-				MatchTemplate:       matchTemplate,
-				MatchTemplateEscape: matchTemplateEscape,
-				Author:              author,
-				AuthorRegexp:        authorRegexp,
-				Variables:           vars,
-				YearMode:            yearMode,
-				CommentStyle:        commentStyle,
+				Template:      template,
+				Matcher:       matcher,
+				MatcherEscape: matcherEscape,
+				Author:        author,
+				AuthorRegexp:  authorRegexp,
+				Variables:     vars,
+				YearMode:      yearMode,
+				CommentStyle:  commentStyle,
 			},
-			Exclude:           strings.Split(exclude, ","),
-			MaxConcurrent:     maxConcurrent,
-			MatchHeaderRegexp: matchHeaderRegexp,
+			Exclude:       strings.Split(exclude, ","),
+			MaxConcurrent: maxConcurrent,
+			HeaderMatcher: matchHeaderRegexp,
 		})
 		if err != nil {
 			log.Fatal(err)

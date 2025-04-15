@@ -56,9 +56,9 @@ var (
 type Config struct {
 	Header HeaderOpts
 
-	Exclude           []string
-	MaxConcurrent     int
-	MatchHeaderRegexp string
+	Exclude       []string
+	MaxConcurrent int
+	HeaderMatcher string
 }
 
 // NewAnalyzer creates a golicenser analyzer.
@@ -92,8 +92,8 @@ func newAnalyzer(cfg Config) (*analyzer, error) {
 	if cfg.MaxConcurrent < 1 {
 		cfg.MaxConcurrent = DefaultMaxConcurrent
 	}
-	if cfg.MatchHeaderRegexp == "" {
-		cfg.MatchHeaderRegexp = DefaultMatchHeaderRegexp
+	if cfg.HeaderMatcher == "" {
+		cfg.HeaderMatcher = DefaultMatchHeaderRegexp
 	}
 	if cfg.Exclude == nil {
 		cfg.Exclude = DefaultExcludes
@@ -102,7 +102,7 @@ func newAnalyzer(cfg Config) (*analyzer, error) {
 	a := &analyzer{cfg: cfg}
 
 	var err error
-	a.headerMatcher, err = regexp.Compile(a.cfg.MatchHeaderRegexp)
+	a.headerMatcher, err = regexp.Compile(a.cfg.HeaderMatcher)
 	if err != nil {
 		return nil, fmt.Errorf("compile match header regexp: %w", err)
 	}

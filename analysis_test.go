@@ -78,4 +78,51 @@ func TestAnalyzer(t *testing.T) {
 			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
 		})
 	})
+
+	t.Run("with matcher", func(t *testing.T) {
+		cfg := Config{
+			Header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Test",
+				Matcher:  "Copyright \\(c\\) {{.year}} Joshua",
+				YearMode: YearModeThisYear,
+			},
+			Exclude: []string{},
+		}
+		a, err := NewAnalyzer(cfg)
+		if err != nil {
+			t.Fatalf("NewAnalyzer() err = %v", err)
+		}
+
+		// differentmatcher contains a header that will be matched by Matcher
+		// but is different from the Template.
+		t.Run("differentmatcher", func(t *testing.T) {
+			packageDir := filepath.Join(analysistest.TestData(), "src/differentmatcher/")
+			_ = analysistest.Run(t, packageDir, a)
+		})
+	})
+
+	t.Run("with escaped matcher", func(t *testing.T) {
+		cfg := Config{
+			Header: HeaderOpts{
+				Template:      "Copyright (c) {{.year}} {{.author}}",
+				Author:        "Test",
+				Matcher:       "Copyright (c) {{.year}} Joshua",
+				MatcherEscape: true,
+				YearMode:      YearModeThisYear,
+			},
+			Exclude: []string{},
+		}
+		a, err := NewAnalyzer(cfg)
+		if err != nil {
+			t.Fatalf("NewAnalyzer() err = %v", err)
+		}
+
+		// differentmatcher contains a header that will be matched with the
+		// escaped Matcher but is different from the Template.
+		t.Run("differentmatcher", func(t *testing.T) {
+			packageDir := filepath.Join(analysistest.TestData(), "src/differentmatcher/")
+			_ = analysistest.Run(t, packageDir, a)
+		})
+	})
 }
