@@ -80,6 +80,8 @@ Flags:
         display offending line with this many lines of context (default -1)
   -comment-style string
         Comment style (line, block) (default "line")
+  -copyright-header-matcher string
+        Copyright header matcher regexp (used to detect existence of any copyright header) (default "(?i)copyright")
   -cpuprofile string
         write CPU profile to this file
   -debug string
@@ -94,14 +96,12 @@ Flags:
         print analyzer flags in JSON
   -json
         emit JSON output
-  -match-header-regexp string
-        Match header regexp (used to detect any copyright headers) (default "(?i)copyright")
-  -match-tmpl string
-        Match license header template
-  -match-tmpl-file string
-        Match license header template file (used to detect existing license headers which may be updated)
-  -match-tmpl-regexp
-        Whether the provided match template is a regexp expression
+  -matcher string
+        License header matcher (This is template, when executed it must become valid regexp)
+  -matcher-escape
+        Whether to regexp-escape the matcher
+  -matcher-file string
+        License header matcher file)
   -max-concurrent int
         Maximum concurrent processes to use when processing files (default 32)
   -memprofile string
@@ -121,6 +121,8 @@ Flags:
   -v    no effect (deprecated)
   -var string
         Template variables (e.g. a=Hello,b=Test)
+  -var-regexp string
+        Template variable regexps (e.g. 'a=(Hello|World),b=(?i)test'
   -year-mode string
         Year formatting mode (preserve, preserve-this-year-range, preserve-modified-range, this-year, last-modified, git-range, git-modified-years) (default "preserve")
 ```

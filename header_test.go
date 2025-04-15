@@ -21,7 +21,9 @@
 package golicenser
 
 import (
+	"regexp"
 	"testing"
+	"text/template"
 	"time"
 )
 
@@ -137,6 +139,159 @@ func TestCommentStyleParse(t *testing.T) {
 	}
 }
 
+func TestNewHeader(t *testing.T) {
+	tests := []struct {
+		name    string
+		header  HeaderOpts
+		wantErr bool
+	}{
+		{
+			name: "simple",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Joshua Sing",
+			},
+		},
+		{
+			name: "with comment style",
+			header: HeaderOpts{
+				Template:     "Copyright (c) {{.year}} {{.author}}",
+				Author:       "Joshua Sing",
+				CommentStyle: CommentStyleBlock,
+			},
+		},
+		{
+			name: "missing author",
+			header: HeaderOpts{
+				Template: "Test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "with author regexp",
+			header: HeaderOpts{
+				Template:     "{{.author}}",
+				Author:       "Test",
+				AuthorRegexp: "(Test|Someone)",
+			},
+		},
+		{
+			name: "with invalid author regexp",
+			header: HeaderOpts{
+				Template:     "{{.author}}",
+				Author:       "Test",
+				AuthorRegexp: "(Test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing template",
+			header: HeaderOpts{
+				Author: "Test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid template",
+			header: HeaderOpts{
+				Template: "Test {{{ . }}",
+				Author:   "test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "use non-existent variable",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.human}}",
+				Author:   "Test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "basename func",
+			header: HeaderOpts{
+				Template: "This file is {{basename .filename}}",
+				Author:   "test",
+			},
+		},
+		{
+			name: "custom variables",
+			header: HeaderOpts{
+				Template: "{{.project}} by {{.person}}",
+				Author:   "test",
+				Variables: map[string]Var{
+					"project": {Value: "project"},
+					"person":  {Value: "person"},
+				},
+			},
+		},
+		{
+			name: "custom variables with regexp",
+			header: HeaderOpts{
+				Template: "{{.project}} by {{.person}}",
+				Author:   "test",
+				Variables: map[string]Var{
+					"project": {Value: "project", Regexp: "(golicenser|project)"},
+					"person":  {Value: "human", Regexp: "(human|person)"},
+				},
+			},
+		},
+		{
+			name: "custom variables with invalid regexp",
+			header: HeaderOpts{
+				Template: "{{.project}} by {{.person}}",
+				Author:   "test",
+				Variables: map[string]Var{
+					"project": {Value: "project", Regexp: "(project"},
+					"person":  {Value: "person", Regexp: "person)"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "with matcher",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Test",
+				Matcher:  "Copyright \\(c\\) \\d{4} (Test|Someone)",
+			},
+		},
+		{
+			name: "invalid matcher template",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Test",
+				Matcher:  "Copyright \\(c\\) {{}.year}} (Test)",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid matcher regexp",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Test",
+				Matcher:  "Copyright \\(c\\) {{.year}} (Test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "MIT",
+			header: HeaderOpts{
+				Template: LicenseMIT,
+				Author:   "Joshua Sing",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewHeader(tt.header)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewHeader err = %v, want err %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestHeaderCreate(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -182,6 +337,30 @@ func TestHeaderCreate(t *testing.T) {
 			want:     "// This file is header_test.go\n",
 		},
 		{
+			name: "custom variables",
+			header: HeaderOpts{
+				Template: "{{.project}} by {{.person}}",
+				Author:   "test",
+				Variables: map[string]Var{
+					"project": {Value: "project"},
+					"person":  {Value: "person"},
+				},
+			},
+			want: "// project by person\n",
+		},
+		{
+			name: "custom variables with regexp",
+			header: HeaderOpts{
+				Template: "{{.project}} by {{.person}}",
+				Author:   "test",
+				Variables: map[string]Var{
+					"project": {Value: "project", Regexp: "(golicenser|project)"},
+					"person":  {Value: "human", Regexp: "(human|person)"},
+				},
+			},
+			want: "// project by human\n",
+		},
+		{
 			name: "MIT",
 			header: HeaderOpts{
 				Template: LicenseMIT,
@@ -214,6 +393,9 @@ func TestHeaderCreate(t *testing.T) {
 			h, err := NewHeader(tt.header)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewHeader err = %v, want err %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
 			}
 			header, err := h.Create(tt.filename)
 			if err != nil {
@@ -339,6 +521,130 @@ func TestHeaderUpdate(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("h.Update() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHeaderMatcher(t *testing.T) {
+	type matchTest struct {
+		name      string
+		input     string
+		wantMatch bool
+	}
+
+	tests := []struct {
+		name         string
+		matcher      string
+		escape       bool
+		variables    map[string]Var
+		authorRegexp *regexp.Regexp
+		wantErr      bool
+		matchTests   []matchTest
+	}{
+		{
+			name:         "basic escaped",
+			matcher:      "Copyright (c) {{.year}} {{.author}}\nFile: {{.filename}}",
+			escape:       true,
+			authorRegexp: regexp.MustCompile("Test"),
+			matchTests: []matchTest{
+				{
+					name:      "empty",
+					input:     "",
+					wantMatch: false,
+				},
+				{
+					name:      "random",
+					input:     "Hello world",
+					wantMatch: false,
+				},
+				{
+					name:      "exact match",
+					input:     "Copyright (c) 2025 Test\nFile: header_test.go",
+					wantMatch: true,
+				},
+				{
+					name:      "different year",
+					input:     "Copyright (c) 2000 Test\nFile: header_test.go",
+					wantMatch: true,
+				},
+			},
+		},
+		{
+			name:    "custom variables",
+			matcher: "{{.project}} by {{.name}} - Copyright (c) {{.year}} {{.author}}",
+			escape:  true,
+			variables: map[string]Var{
+				"project": {Value: "golicenser", Regexp: "golicenser"},
+				"name":    {Value: "joshuasing", Regexp: "joshuasing"},
+			},
+			authorRegexp: regexp.MustCompile("Test"),
+			matchTests: []matchTest{
+				{
+					name:      "exact match",
+					input:     "golicenser by joshuasing - Copyright (c) 2025 Test",
+					wantMatch: true,
+				},
+				{
+					name:      "different variable values",
+					input:     "golicenser by someone - Copyright (c) 2025 Test",
+					wantMatch: false,
+				},
+			},
+		},
+		{
+			name:    "custom variables with regexp",
+			matcher: "{{.project}} by {{.name}} - Copyright (c) {{.year}} {{.author}}",
+			escape:  true,
+			variables: map[string]Var{
+				"project": {Value: "golicenser", Regexp: "go-?licenser"},
+				"name":    {Value: "joshuasing", Regexp: "(joshuasing|someone)"},
+			},
+			authorRegexp: regexp.MustCompile("Test"),
+			matchTests: []matchTest{
+				{
+					name:      "exact match",
+					input:     "golicenser by joshuasing - Copyright (c) 2025 Test",
+					wantMatch: true,
+				},
+				{
+					name:      "one different matched",
+					input:     "go-licenser by joshuasing - Copyright (c) 2025 Test",
+					wantMatch: true,
+				},
+				{
+					name:      "both different matched",
+					input:     "go-licenser by someone - Copyright (c) 2025 Test",
+					wantMatch: true,
+				},
+				{
+					name:      "unmatched variable value",
+					input:     "project by someone - Copyright (c) 2025 Test",
+					wantMatch: false,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpl, err := template.New("").Parse(tt.matcher)
+			if err != nil {
+				t.Fatalf("compile template: %v", err)
+			}
+
+			matcher, err := headerMatcher(tmpl, tt.escape, tt.authorRegexp, tt.variables)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("headerMatcher err = %v, want err %v", err, tt.wantErr)
+			}
+			t.Logf("Matcher: %v", matcher.String())
+
+			for _, mt := range tt.matchTests {
+				t.Run(mt.name, func(t *testing.T) {
+					if got := matcher.MatchString(mt.input); got != mt.wantMatch {
+						t.Errorf("MatchString(%q) = %v, want %v",
+							mt.input, got, mt.wantMatch)
+					}
+				})
 			}
 		})
 	}

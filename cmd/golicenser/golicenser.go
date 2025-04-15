@@ -44,6 +44,7 @@ var (
 	author                 string
 	authorRegexp           string
 	variables              string
+	variableRegexps        string
 	yearModeStr            string
 	commentStyleStr        string
 	exclude                string
@@ -65,6 +66,8 @@ func init() {
 	flagSet.StringVar(&authorRegexp, "author-regexp", "",
 		"Regexp to match copyright author (default: match author)")
 	flagSet.StringVar(&variables, "var", "", "Template variables (e.g. a=Hello,b=Test)")
+	flagSet.StringVar(&variableRegexps, "var-regexp", "",
+		"Template variable regexps (e.g. 'a=(Hello|World),b=(?i)test'")
 	flagSet.StringVar(&yearModeStr, "year-mode", golicenser.YearMode(0).String(),
 		"Year formatting mode (preserve, preserve-this-year-range, preserve-modified-range, this-year, last-modified, git-range, git-modified-years)")
 	flagSet.StringVar(&commentStyleStr, "comment-style", golicenser.CommentStyle(0).String(),
@@ -101,7 +104,7 @@ var analyzer = &analysis.Analyzer{
 			//nolint:gosec // Reading user-defined file.
 			b, err := os.ReadFile(matcherFile)
 			if err != nil {
-				log.Fatal("read match template file: ", err)
+				log.Fatal("read matcher file: ", err)
 			}
 			matcher = string(b)
 		} else {
@@ -111,14 +114,27 @@ var analyzer = &analysis.Analyzer{
 		}
 
 		// Parse variables
-		vars := make(map[string]any)
+		vars := make(map[string]golicenser.Var)
 		if variables != "" {
 			for _, v := range strings.Split(variables, ",") {
 				parts := strings.SplitN(v, "=", 2)
 				if len(parts) != 2 {
 					log.Fatal("invalid variable: ", v)
 				}
-				vars[parts[0]] = parts[1]
+				vars[parts[0]] = golicenser.Var{Value: parts[1]}
+			}
+		}
+		if variableRegexps != "" {
+			for _, v := range strings.Split(variableRegexps, ",") {
+				parts := strings.SplitN(v, "=", 2)
+				if len(parts) != 2 {
+					log.Fatal("invalid variable: ", v)
+				}
+				va, ok := vars[parts[0]]
+				if !ok {
+					log.Fatal("regexp for non-existent variable: ", v)
+				}
+				va.Regexp = parts[1]
 			}
 		}
 
