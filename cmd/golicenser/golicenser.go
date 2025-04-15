@@ -26,7 +26,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
@@ -52,31 +51,29 @@ var (
 	matchHeaderRegexp   string
 )
 
-var setupFlagsOnce = sync.OnceFunc(setupFlags)
-
-func setupFlags() {
-	flag.StringVar(&template, "tmpl", "", "License header template")
-	flag.StringVar(&templateFile, "tmpl-file", "license_header.txt",
+func init() {
+	flagSet.StringVar(&template, "tmpl", "", "License header template")
+	flagSet.StringVar(&templateFile, "tmpl-file", "license_header.txt",
 		"License header template file")
-	flag.StringVar(&matchTemplate, "match-tmpl", "",
+	flagSet.StringVar(&matchTemplate, "match-tmpl", "",
 		"Match license header template")
-	flag.StringVar(&matchTemplateFile, "match-tmpl-file", "",
+	flagSet.StringVar(&matchTemplateFile, "match-tmpl-file", "",
 		"Match license header template file (used to detect existing license headers which may be updated)")
-	flag.BoolVar(&matchTemplateEscape, "match-tmpl-escape", false,
+	flagSet.BoolVar(&matchTemplateEscape, "match-tmpl-escape", false,
 		"Whether to regexp-escape the match-tmpl")
-	flag.StringVar(&author, "author", "", "Copyright author")
-	flag.StringVar(&authorRegexp, "author-regexp", "",
+	flagSet.StringVar(&author, "author", "", "Copyright author")
+	flagSet.StringVar(&authorRegexp, "author-regexp", "",
 		"Regexp to match copyright author (default: match author)")
-	flag.StringVar(&variables, "var", "", "Template variables (e.g. a=Hello,b=Test)")
-	flag.StringVar(&yearModeStr, "year-mode", golicenser.YearMode(0).String(),
+	flagSet.StringVar(&variables, "var", "", "Template variables (e.g. a=Hello,b=Test)")
+	flagSet.StringVar(&yearModeStr, "year-mode", golicenser.YearMode(0).String(),
 		"Year formatting mode (preserve, preserve-this-year-range, preserve-modified-range, this-year, last-modified, git-range, git-modified-years)")
-	flag.StringVar(&commentStyleStr, "comment-style", golicenser.CommentStyle(0).String(),
+	flagSet.StringVar(&commentStyleStr, "comment-style", golicenser.CommentStyle(0).String(),
 		"Comment style (line, block)")
-	flag.StringVar(&exclude, "exclude", strings.Join(golicenser.DefaultExcludes, ","),
+	flagSet.StringVar(&exclude, "exclude", strings.Join(golicenser.DefaultExcludes, ","),
 		"Paths to exclude (doublestar or r!-prefixed regexp, comma-separated)")
-	flag.IntVar(&maxConcurrent, "max-concurrent", golicenser.DefaultMaxConcurrent,
+	flagSet.IntVar(&maxConcurrent, "max-concurrent", golicenser.DefaultMaxConcurrent,
 		"Maximum concurrent processes to use when processing files")
-	flag.StringVar(&matchHeaderRegexp, "match-header-regexp", golicenser.DefaultMatchHeaderRegexp,
+	flagSet.StringVar(&matchHeaderRegexp, "match-header-regexp", golicenser.DefaultMatchHeaderRegexp,
 		"Match header regexp (used to detect any copyright headers)")
 }
 
@@ -88,8 +85,6 @@ var analyzer = &analysis.Analyzer{
 	URL:   "https://github.com/joshuasing/golicenser",
 	Flags: flagSet,
 	Run: func(pass *analysis.Pass) (any, error) {
-		setupFlagsOnce()
-
 		var err error
 		if template == "" {
 			//nolint:gosec // Reading user-defined file.

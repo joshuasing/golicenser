@@ -19,7 +19,7 @@
 # SOFTWARE.
 
 .PHONY: all
-all: lint build test
+all: lint build test run
 
 .PHONY: deps
 deps:
