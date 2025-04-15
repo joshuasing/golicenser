@@ -36,9 +36,10 @@ import (
 const (
 	analyzerName = "golicenser"
 
-	// DefaultMatchHeaderRegexp is the default regexp used to detect license
-	// headers. This will match any header containing "copyright".
-	DefaultMatchHeaderRegexp = "(?i)copyright"
+	// DefaultCopyrightHeaderMatcher is the default regexp used to detect the
+	// existence of any copyright header  This will match any header containing
+	// "copyright".
+	DefaultCopyrightHeaderMatcher = "(?i)copyright"
 )
 
 var (
@@ -56,9 +57,9 @@ var (
 type Config struct {
 	Header HeaderOpts
 
-	Exclude           []string
-	MaxConcurrent     int
-	MatchHeaderRegexp string
+	Exclude                []string
+	MaxConcurrent          int
+	CopyrightHeaderMatcher string
 }
 
 // NewAnalyzer creates a golicenser analyzer.
@@ -92,8 +93,8 @@ func newAnalyzer(cfg Config) (*analyzer, error) {
 	if cfg.MaxConcurrent < 1 {
 		cfg.MaxConcurrent = DefaultMaxConcurrent
 	}
-	if cfg.MatchHeaderRegexp == "" {
-		cfg.MatchHeaderRegexp = DefaultMatchHeaderRegexp
+	if cfg.CopyrightHeaderMatcher == "" {
+		cfg.CopyrightHeaderMatcher = DefaultCopyrightHeaderMatcher
 	}
 	if cfg.Exclude == nil {
 		cfg.Exclude = DefaultExcludes
@@ -102,7 +103,7 @@ func newAnalyzer(cfg Config) (*analyzer, error) {
 	a := &analyzer{cfg: cfg}
 
 	var err error
-	a.headerMatcher, err = regexp.Compile(a.cfg.MatchHeaderRegexp)
+	a.headerMatcher, err = regexp.Compile(a.cfg.CopyrightHeaderMatcher)
 	if err != nil {
 		return nil, fmt.Errorf("compile match header regexp: %w", err)
 	}
