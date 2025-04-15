@@ -12,7 +12,6 @@ changelog:
     - title: "🐛 Fixes"
       labels:
         - "type: bug"
-        - "type: broken metric"
     - title: "🔧 Improvements"
       labels:
         - "type: enhancement"
