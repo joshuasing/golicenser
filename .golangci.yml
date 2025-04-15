@@ -1,16 +1,18 @@
+version: "2"
+run:
+  go: "1.23"
+
 linters:
   enable:
     - "bodyclose"
     - "copyloopvar"
     - "errcheck"
-    - "gci"
-    - "gofumpt"
     - "goheader"
     - "gosec"
-    - "gosimple"
     - "govet"
     - "ineffassign"
     - "nilerr"
+    - "nolintlint"
     - "predeclared"
     - "revive"
     - "staticcheck"
@@ -20,11 +22,15 @@ linters:
     - "unparam"
     - "whitespace"
 
-linters-settings:
-  # Enforces import order in Go source files
-  gci:
-    sections:
-      - "standard"
-      - "default"
-      - "localmodule"
-    custom-order: true
+formatters:
+  enable:
+    - "gci"
+    - "gofumpt"
+  settings:
+    # Enforces import order in Go source files
+    gci:
+      sections:
+        - "standard"
+        - "default"
+        - "localmodule"
+      custom-order: true

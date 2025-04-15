@@ -186,10 +186,12 @@ func (cs CommentStyle) Render(s string) string {
 	case CommentStyleBlock:
 		return "/*\n" + s + "\n*/\n"
 	default:
-		panic(fmt.Errorf("golicenser: missing comment style render for %q", cs))
+		// Cannot render as a comment.
+		return s
 	}
 }
 
+// Parse parses the comment and returns the uncommented string.
 func (cs CommentStyle) Parse(s string) string {
 	switch cs {
 	case CommentStyleLine:
@@ -208,10 +210,12 @@ func (cs CommentStyle) Parse(s string) string {
 	case CommentStyleBlock:
 		return strings.TrimSuffix(strings.TrimPrefix(s, "/*\n"), "\n*/\n")
 	default:
-		panic(fmt.Errorf("golicenser: missing comment style parse for %q", cs))
+		// Cannot parse as a comment.
+		return s
 	}
 }
 
+// Header is a helper for generating and updating license headers.
 type Header struct {
 	tmpl    *template.Template
 	matcher *regexp.Regexp
@@ -226,6 +230,7 @@ var tmplFuncMap = template.FuncMap{
 	"basename": filepath.Base,
 }
 
+// HeaderOpts are the options for creating a license header.
 type HeaderOpts struct {
 	Template                   string
 	MatchTemplate              string
@@ -237,6 +242,7 @@ type HeaderOpts struct {
 	CommentStyle               CommentStyle
 }
 
+// NewHeader creates a new header with the given options.
 func NewHeader(opts HeaderOpts) (*Header, error) {
 	if opts.Author == "" {
 		return nil, fmt.Errorf("invalid author: %q", opts.Author)
@@ -304,18 +310,22 @@ func NewHeader(opts HeaderOpts) (*Header, error) {
 }
 
 // Create creates a new license header for the file.
-func (h *Header) Create(filename string) string {
-	return h.commentStyle.Render(h.render(filename, timeNow().Format("2006")))
+func (h *Header) Create(filename string) (string, error) {
+	header, err := h.render(filename, timeNow().Format("2006"))
+	if err != nil {
+		return "", fmt.Errorf("render header: %w", err)
+	}
+	return h.commentStyle.Render(header), nil
 }
 
 // Update updates an existing license header if it matches the
-func (h *Header) Update(filename, header string) (string, bool) {
+func (h *Header) Update(filename, header string) (string, bool, error) {
 	if cs, err := detectCommentStyle(header); err == nil {
 		header = cs.Parse(header)
 	}
 	match := h.matcher.FindStringSubmatch(header)
 	if match == nil {
-		return header, false
+		return header, false, nil
 	}
 
 	var year string
@@ -374,12 +384,15 @@ func (h *Header) Update(filename, header string) (string, bool) {
 	if year == "" {
 		year = timeNow().Format("2006")
 	}
-	newHeader := h.render(filename, year)
 
-	return h.commentStyle.Render(newHeader), newHeader != header
+	newHeader, err := h.render(filename, year)
+	if err != nil {
+		return "", false, fmt.Errorf("render header: %w", err)
+	}
+	return h.commentStyle.Render(newHeader), newHeader != header, nil
 }
 
-func (h *Header) render(filename, year string) string {
+func (h *Header) render(filename, year string) (string, error) {
 	// Built-in variables.
 	m := map[string]any{
 		"author":   h.author,
@@ -390,9 +403,9 @@ func (h *Header) render(filename, year string) string {
 
 	var b bytes.Buffer
 	if err := h.tmpl.Execute(&b, m); err != nil {
-		panic(fmt.Errorf("golicenser: execute header template: %w", err))
+		return "", fmt.Errorf("execute template: %w", err)
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regexp.Regexp, variables map[string]any) (*regexp.Regexp, error) {

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// Package golicenser implements a go/analysis for linting license headers.
 package golicenser
 
 import (
@@ -35,16 +36,23 @@ import (
 const (
 	analyzerName = "golicenser"
 
+	// DefaultMatchHeaderRegexp is the default regexp used to detect license
+	// headers. This will match any header containing "copyright".
 	DefaultMatchHeaderRegexp = "(?i)copyright"
 )
 
 var (
+	// DefaultMaxConcurrent is the default maximum concurrency to use when
+	// analyzing files.
 	DefaultMaxConcurrent = runtime.GOMAXPROCS(0) * 2
-	DefaultExcludes      = []string{
+
+	// DefaultExcludes are the default files to exclude when analyzing.
+	DefaultExcludes = []string{
 		"**/testdata/**", // Exclude testdata directories
 	}
 )
 
+// Config is the golicenser configuration.
 type Config struct {
 	Header HeaderOpts
 
@@ -53,6 +61,7 @@ type Config struct {
 	MatchHeaderRegexp string
 }
 
+// NewAnalyzer creates a golicenser analyzer.
 func NewAnalyzer(cfg Config) (*analysis.Analyzer, error) {
 	a, err := newAnalyzer(cfg)
 	if err != nil {
@@ -68,6 +77,7 @@ func NewAnalyzer(cfg Config) (*analysis.Analyzer, error) {
 	}, nil
 }
 
+// ExcludeMatcherFunc is a function for determining whether to exclude a file.
 type ExcludeMatcherFunc func(filename string) bool
 
 type analyzer struct {
@@ -173,7 +183,10 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 
 	if header == "" || !a.headerMatcher.MatchString(header) {
 		// License header is missing, generate a new one.
-		header = a.header.Create(filename) + "\n"
+		newHeader, err := a.header.Create(filename)
+		if err != nil {
+			return fmt.Errorf("create %s header: %w", filename, err)
+		}
 		pass.Report(analysis.Diagnostic{
 			Pos:      file.FileStart,
 			Category: analyzerName,
@@ -182,14 +195,18 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 				Message: "add license header",
 				TextEdits: []analysis.TextEdit{{
 					Pos:     file.FileStart,
-					NewText: []byte(header),
+					NewText: []byte(newHeader + "\n"),
 				}},
 			}},
 		})
 		return nil
 	}
 
-	if newHeader, modified := a.header.Update(filename, header); modified {
+	newHeader, modified, err := a.header.Update(filename, header)
+	if err != nil {
+		return fmt.Errorf("update %s header: %w", filename, err)
+	}
+	if modified {
 		pass.Report(analysis.Diagnostic{
 			Pos:     headerPos,
 			End:     headerEnd,
