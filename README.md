@@ -121,6 +121,8 @@ Flags:
   -v    no effect (deprecated)
   -var string
         Template variables (e.g. a=Hello,b=Test)
+  -var-regexp string
+        Template variable regexps (e.g. 'a=(Hello|World),b=(?i)test'
   -year-mode string
         Year formatting mode (preserve, preserve-this-year-range, preserve-modified-range, this-year, last-modified, git-range, git-modified-years) (default "preserve")
 ```
