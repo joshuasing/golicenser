@@ -36,19 +36,19 @@ import (
 var flagSet flag.FlagSet
 
 var (
-	template          string
-	templateFile      string
-	matcher           string
-	matcherFile       string
-	matcherEscape     bool
-	author            string
-	authorRegexp      string
-	variables         string
-	yearModeStr       string
-	commentStyleStr   string
-	exclude           string
-	maxConcurrent     int
-	matchHeaderRegexp string
+	template               string
+	templateFile           string
+	matcher                string
+	matcherFile            string
+	matcherEscape          bool
+	author                 string
+	authorRegexp           string
+	variables              string
+	yearModeStr            string
+	commentStyleStr        string
+	exclude                string
+	maxConcurrent          int
+	copyrightHeaderMatcher string
 )
 
 func init() {
@@ -73,8 +73,8 @@ func init() {
 		"Paths to exclude (doublestar or r!-prefixed regexp, comma-separated)")
 	flagSet.IntVar(&maxConcurrent, "max-concurrent", golicenser.DefaultMaxConcurrent,
 		"Maximum concurrent processes to use when processing files")
-	flagSet.StringVar(&matchHeaderRegexp, "header-matcher", golicenser.DefaultMatchHeaderRegexp,
-		"Header matcher regexp (used to detect any copyright headers)")
+	flagSet.StringVar(&copyrightHeaderMatcher, "copyright-header-matcher", golicenser.DefaultCopyrightHeaderMatcher,
+		"Copyright header matcher regexp (used to detect existence of any copyright header)")
 }
 
 // TODO(joshuasing): There has to be a better way of doing this...
@@ -145,9 +145,9 @@ var analyzer = &analysis.Analyzer{
 				YearMode:      yearMode,
 				CommentStyle:  commentStyle,
 			},
-			Exclude:       strings.Split(exclude, ","),
-			MaxConcurrent: maxConcurrent,
-			HeaderMatcher: matchHeaderRegexp,
+			Exclude:                strings.Split(exclude, ","),
+			MaxConcurrent:          maxConcurrent,
+			CopyrightHeaderMatcher: copyrightHeaderMatcher,
 		})
 		if err != nil {
 			log.Fatal(err)
