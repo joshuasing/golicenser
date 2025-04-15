@@ -84,6 +84,9 @@ jobs:
       - name: "Test"
         run: go test ./...
 
+      - name: "golicenser"
+        run: make run
+
   lint:
     name: "Lint"
     runs-on: "ubuntu-latest"
