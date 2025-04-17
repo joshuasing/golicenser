@@ -1,5 +1,6 @@
 # Project
 _bench/
+.cover
 bin/
 dist/
 

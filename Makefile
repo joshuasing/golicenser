@@ -49,7 +49,11 @@ run: build
 
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -coverprofile=.cover ./...
+
+.PHONY: cover
+cover:
+	go tool cover -html .cover
 
 .PHONY: test-race
 test-race:
