@@ -114,14 +114,14 @@ var analyzer = &analysis.Analyzer{
 		}
 
 		// Parse variables
-		vars := make(map[string]golicenser.Var)
+		vars := make(map[string]*golicenser.Var)
 		if variables != "" {
 			for _, v := range strings.Split(variables, ",") {
 				parts := strings.SplitN(v, "=", 2)
 				if len(parts) != 2 {
 					log.Fatal("invalid variable: ", v)
 				}
-				vars[parts[0]] = golicenser.Var{Value: parts[1]}
+				vars[parts[0]] = &golicenser.Var{Value: parts[1]}
 			}
 		}
 		if variableRegexps != "" {

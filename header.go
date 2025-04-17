@@ -220,7 +220,7 @@ type Header struct {
 	matcher *regexp.Regexp
 
 	author       string
-	variables    map[string]Var
+	variables    map[string]*Var
 	yearMode     YearMode
 	commentStyle CommentStyle
 }
@@ -246,7 +246,7 @@ type HeaderOpts struct {
 	MatcherEscape bool
 	Author        string
 	AuthorRegexp  string
-	Variables     map[string]Var
+	Variables     map[string]*Var
 	YearMode      YearMode
 	CommentStyle  CommentStyle
 }
@@ -429,7 +429,7 @@ func (h *Header) render(filename, year string) (string, error) {
 	return b.String(), nil
 }
 
-func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regexp.Regexp, variables map[string]Var) (*regexp.Regexp, error) {
+func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regexp.Regexp, variables map[string]*Var) (*regexp.Regexp, error) {
 	m := map[string]string{
 		"author":   "__VAR_author__",
 		"filename": "__VAR_filename__",
@@ -468,7 +468,7 @@ func headerMatcher(tmpl *template.Template, escapeTmpl bool, authorRegexp *regex
 	return regexp.Compile(headerExpr)
 }
 
-func addVariables(m map[string]any, vars map[string]Var) {
+func addVariables(m map[string]any, vars map[string]*Var) {
 	for k, v := range vars {
 		m[k] = v.Value
 	}
