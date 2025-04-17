@@ -219,7 +219,7 @@ func TestNewHeader(t *testing.T) {
 			header: HeaderOpts{
 				Template: "{{.project}} by {{.person}}",
 				Author:   "test",
-				Variables: map[string]Var{
+				Variables: map[string]*Var{
 					"project": {Value: "project"},
 					"person":  {Value: "person"},
 				},
@@ -230,7 +230,7 @@ func TestNewHeader(t *testing.T) {
 			header: HeaderOpts{
 				Template: "{{.project}} by {{.person}}",
 				Author:   "test",
-				Variables: map[string]Var{
+				Variables: map[string]*Var{
 					"project": {Value: "project", Regexp: "(golicenser|project)"},
 					"person":  {Value: "human", Regexp: "(human|person)"},
 				},
@@ -241,7 +241,7 @@ func TestNewHeader(t *testing.T) {
 			header: HeaderOpts{
 				Template: "{{.project}} by {{.person}}",
 				Author:   "test",
-				Variables: map[string]Var{
+				Variables: map[string]*Var{
 					"project": {Value: "project", Regexp: "(project"},
 					"person":  {Value: "person", Regexp: "person)"},
 				},
@@ -341,7 +341,7 @@ func TestHeaderCreate(t *testing.T) {
 			header: HeaderOpts{
 				Template: "{{.project}} by {{.person}}",
 				Author:   "test",
-				Variables: map[string]Var{
+				Variables: map[string]*Var{
 					"project": {Value: "project"},
 					"person":  {Value: "person"},
 				},
@@ -353,7 +353,7 @@ func TestHeaderCreate(t *testing.T) {
 			header: HeaderOpts{
 				Template: "{{.project}} by {{.person}}",
 				Author:   "test",
-				Variables: map[string]Var{
+				Variables: map[string]*Var{
 					"project": {Value: "project", Regexp: "(golicenser|project)"},
 					"person":  {Value: "human", Regexp: "(human|person)"},
 				},
@@ -461,6 +461,35 @@ func TestHeaderUpdate(t *testing.T) {
 			wantModified: true,
 		},
 		{
+			name: "custom variables",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}\nProject: {{.project}}, Greet: {{.greet}}",
+				Author:   "Joshua Sing",
+				YearMode: YearModeThisYear,
+				Variables: map[string]*Var{
+					"project": {Value: "project"},
+					"greet":   {Value: "Hello world"},
+				},
+			},
+			existing:     "// Copyright (c) 2024 Joshua Sing\n// Project: project, Greet: Hello world",
+			want:         "// Copyright (c) 2025 Joshua Sing\n// Project: project, Greet: Hello world\n",
+			wantModified: true,
+		},
+		{
+			name: "custom variables with regexp",
+			header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}\nProject: {{.project}}, Greet: {{.greet}}",
+				Author:   "Joshua Sing",
+				Variables: map[string]*Var{
+					"project": {Value: "project"},
+					"greet":   {Value: "Hello world", Regexp: "Hello (.+)"},
+				},
+			},
+			existing:     "// Copyright (c) 2025 Joshua Sing\n// Project: project, Greet: Hello there!",
+			want:         "// Copyright (c) 2025 Joshua Sing\n// Project: project, Greet: Hello world\n",
+			wantModified: true,
+		},
+		{
 			name: "change MIT to OpenBSD",
 			header: HeaderOpts{
 				Template:      LicenseOpenBSD,
@@ -537,7 +566,7 @@ func TestHeaderMatcher(t *testing.T) {
 		name         string
 		matcher      string
 		escape       bool
-		variables    map[string]Var
+		variables    map[string]*Var
 		authorRegexp *regexp.Regexp
 		wantErr      bool
 		matchTests   []matchTest
@@ -574,7 +603,7 @@ func TestHeaderMatcher(t *testing.T) {
 			name:    "custom variables",
 			matcher: "{{.project}} by {{.name}} - Copyright (c) {{.year}} {{.author}}",
 			escape:  true,
-			variables: map[string]Var{
+			variables: map[string]*Var{
 				"project": {Value: "golicenser", Regexp: "golicenser"},
 				"name":    {Value: "joshuasing", Regexp: "joshuasing"},
 			},
@@ -596,7 +625,7 @@ func TestHeaderMatcher(t *testing.T) {
 			name:    "custom variables with regexp",
 			matcher: "{{.project}} by {{.name}} - Copyright (c) {{.year}} {{.author}}",
 			escape:  true,
-			variables: map[string]Var{
+			variables: map[string]*Var{
 				"project": {Value: "golicenser", Regexp: "go-?licenser"},
 				"name":    {Value: "joshuasing", Regexp: "(joshuasing|someone)"},
 			},

@@ -49,7 +49,7 @@ run: build
 
 .PHONY: test
 test:
-	go test ./...
+	go test -v ./...
 
 .PHONY: test-race
 test-race:
