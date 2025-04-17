@@ -37,7 +37,7 @@ const (
 	analyzerName = "golicenser"
 
 	// DefaultCopyrightHeaderMatcher is the default regexp used to detect the
-	// existence of any copyright header  This will match any header containing
+	// existence of any copyright header. This will match any header containing
 	// "copyright".
 	DefaultCopyrightHeaderMatcher = "(?i)copyright"
 )
