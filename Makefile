@@ -49,7 +49,7 @@ run: build
 
 .PHONY: test
 test:
-	go test -v -coverprofile=.cover ./...
+	go test -coverprofile=.cover ./...
 
 .PHONY: cover
 cover:

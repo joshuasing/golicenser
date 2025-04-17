@@ -35,6 +35,104 @@ func init() {
 
 // TODO(joshuasing): mock git and add test coverage for the Git year modes (fun).
 
+func TestParseYearMode(t *testing.T) {
+	t.Parallel()
+
+	type parseTest struct {
+		name    string
+		s       string
+		want    YearMode
+		wantErr bool
+	}
+	tests := []parseTest{
+		{
+			name: "case insensitive",
+			s:    "pReSerVe",
+			want: YearModePreserve,
+		},
+		{
+			name:    "invalid",
+			s:       "invalid",
+			wantErr: true,
+		},
+	}
+	for ym, s := range yearModeStrings {
+		tests = append(tests, parseTest{
+			name: s,
+			s:    s,
+			want: ym,
+		})
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseYearMode(tt.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseYearMode(%q) err = %v, want %v",
+					tt.s, err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("ParseYearMode(%q) = %v, want %v",
+					tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestYearModeString(t *testing.T) {
+	for ym, s := range yearModeStrings {
+		if got := ym.String(); got != s {
+			t.Errorf("YearMode(%d) = %s, want %s", ym, got, s)
+		}
+	}
+}
+
+func TestParseCommentStyle(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		s       string
+		want    CommentStyle
+		wantErr bool
+	}{
+		{
+			name: CommentStyleLine.String(),
+			s:    CommentStyleLine.String(),
+			want: CommentStyleLine,
+		},
+		{
+			name: CommentStyleBlock.String(),
+			s:    CommentStyleBlock.String(),
+			want: CommentStyleBlock,
+		},
+		{
+			name: "case insensitive",
+			s:    "BlOcK",
+			want: CommentStyleBlock,
+		},
+		{
+			name:    "invalid",
+			s:       "invalid",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseCommentStyle(tt.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseCommentStyle(%q) err = %v, want %v",
+					tt.s, err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("ParseCommentStyle(%q) = %v, want %v",
+					tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCommentStyleRender(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -67,11 +165,13 @@ func TestCommentStyleRender(t *testing.T) {
 			style: CommentStyleLine,
 		},
 		{
+			name:  "block",
 			in:    "Hello world",
 			want:  "/*\nHello world\n*/\n",
 			style: CommentStyleBlock,
 		},
 		{
+			name:  "block mutiline",
 			in:    "Line 1\nLine 2",
 			want:  "/*\nLine 1\nLine 2\n*/\n",
 			style: CommentStyleBlock,
@@ -293,6 +393,8 @@ func TestNewHeader(t *testing.T) {
 }
 
 func TestHeaderCreate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		header   HeaderOpts
@@ -390,6 +492,7 @@ func TestHeaderCreate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h, err := NewHeader(tt.header)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewHeader err = %v, want err %v", err, tt.wantErr)
@@ -409,6 +512,8 @@ func TestHeaderCreate(t *testing.T) {
 }
 
 func TestHeaderUpdate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		header   HeaderOpts
@@ -458,6 +563,17 @@ func TestHeaderUpdate(t *testing.T) {
 			},
 			existing:     "/*\nCopyright (c) 2025 Joshua Sing\n*/\n",
 			want:         "// Copyright (c) 2025 Joshua Sing\n",
+			wantModified: true,
+		},
+		{
+			name: "change line comment to block comment",
+			header: HeaderOpts{
+				Template:     "Copyright (c) {{.year}} {{.author}}",
+				Author:       "Joshua Sing",
+				CommentStyle: CommentStyleBlock,
+			},
+			existing:     "// Copyright (c) 2025 Joshua Sing\n",
+			want:         "/*\nCopyright (c) 2025 Joshua Sing\n*/\n",
 			wantModified: true,
 		},
 		{
@@ -533,9 +649,56 @@ func TestHeaderUpdate(t *testing.T) {
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 `,
 		},
+		{
+			name: "change MIT block to OpenBSD line",
+			header: HeaderOpts{
+				Template:      LicenseOpenBSD,
+				Matcher:       LicenseMIT,
+				MatcherEscape: true,
+				CommentStyle:  CommentStyleLine,
+				Author:        "Joshua Sing",
+			},
+			wantModified: true,
+			existing: `/*
+Copyright (c) 2025 Joshua Sing
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+`,
+			want: `// Copyright (c) 2025 Joshua Sing
+//
+// Permission to use, copy, modify, and distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			h, err := NewHeader(tt.header)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewHeader err = %v, want err %v", err, tt.wantErr)
@@ -556,6 +719,8 @@ func TestHeaderUpdate(t *testing.T) {
 }
 
 func TestHeaderMatcher(t *testing.T) {
+	t.Parallel()
+
 	type matchTest struct {
 		name      string
 		input     string
@@ -656,6 +821,7 @@ func TestHeaderMatcher(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpl, err := template.New("").Parse(tt.matcher)
 			if err != nil {
 				t.Fatalf("compile template: %v", err)

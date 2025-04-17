@@ -22,6 +22,7 @@ package golicenser
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -35,7 +36,11 @@ func init() {
 }
 
 func TestAnalyzer(t *testing.T) {
+	t.Parallel()
+
 	t.Run("simple", func(t *testing.T) {
+		t.Parallel()
+
 		cfg := Config{
 			Header: HeaderOpts{
 				Template: "Copyright (c) {{.year}} {{.author}}",
@@ -52,6 +57,7 @@ func TestAnalyzer(t *testing.T) {
 		// Different header contains a file with a different license header.
 		// This license header should stay as-is and should not be modified.
 		t.Run("differentheader", func(t *testing.T) {
+			t.Parallel()
 			packageDir := filepath.Join(analysistest.TestData(), "src/differentheader/")
 			_ = analysistest.Run(t, packageDir, a)
 		})
@@ -59,6 +65,7 @@ func TestAnalyzer(t *testing.T) {
 		// Empty contains an empty file without any existing license header and
 		// creates a new header.
 		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
 			packageDir := filepath.Join(analysistest.TestData(), "src/empty/")
 			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
 		})
@@ -66,6 +73,7 @@ func TestAnalyzer(t *testing.T) {
 		// Outdated contains a file with a license header which has a different
 		// copyright year. The year should be updated due to YearModeThisYear.
 		t.Run("outdated", func(t *testing.T) {
+			t.Parallel()
 			packageDir := filepath.Join(analysistest.TestData(), "src/outdated/")
 			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
 		})
@@ -74,12 +82,14 @@ func TestAnalyzer(t *testing.T) {
 		// no license header. A license header should be generated without
 		// modifying the doc comment.
 		t.Run("packagecomment", func(t *testing.T) {
+			t.Parallel()
 			packageDir := filepath.Join(analysistest.TestData(), "src/packagecomment/")
 			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
 		})
 	})
 
 	t.Run("with matcher", func(t *testing.T) {
+		t.Parallel()
 		cfg := Config{
 			Header: HeaderOpts{
 				Template: "Copyright (c) {{.year}} {{.author}}",
@@ -97,12 +107,14 @@ func TestAnalyzer(t *testing.T) {
 		// differentmatcher contains a header that will be matched by Matcher
 		// but is different from the Template.
 		t.Run("differentmatcher", func(t *testing.T) {
+			t.Parallel()
 			packageDir := filepath.Join(analysistest.TestData(), "src/differentmatcher/")
 			_ = analysistest.Run(t, packageDir, a)
 		})
 	})
 
 	t.Run("with escaped matcher", func(t *testing.T) {
+		t.Parallel()
 		cfg := Config{
 			Header: HeaderOpts{
 				Template:      "Copyright (c) {{.year}} {{.author}}",
@@ -121,8 +133,169 @@ func TestAnalyzer(t *testing.T) {
 		// differentmatcher contains a header that will be matched with the
 		// escaped Matcher but is different from the Template.
 		t.Run("differentmatcher", func(t *testing.T) {
+			t.Parallel()
 			packageDir := filepath.Join(analysistest.TestData(), "src/differentmatcher/")
 			_ = analysistest.Run(t, packageDir, a)
 		})
 	})
+}
+
+func TestNewAnalyzer(t *testing.T) {
+	t.Parallel()
+
+	header := HeaderOpts{
+		Template: "test",
+		Author:   "test",
+	}
+
+	tests := []struct {
+		name    string
+		cfg     Config
+		wantErr bool
+		check   func(t *testing.T, a *analyzer)
+	}{
+		{
+			name: "defaults",
+			cfg: Config{
+				Header: header,
+			},
+			check: func(t *testing.T, a *analyzer) {
+				t.Helper()
+				if a.cfg.MaxConcurrent != DefaultMaxConcurrent {
+					t.Errorf("MaxConcurrent = %v, want %v",
+						a.cfg.MaxConcurrent, DefaultMaxConcurrent)
+				}
+				if a.cfg.CopyrightHeaderMatcher != DefaultCopyrightHeaderMatcher {
+					t.Errorf("CopyrightHeaderMatcher = %v, want %v",
+						a.cfg.CopyrightHeaderMatcher, DefaultCopyrightHeaderMatcher)
+				}
+				if !reflect.DeepEqual(a.cfg.Exclude, DefaultExcludes) {
+					t.Errorf("Exclude = %v, want %v", a.cfg.Exclude, DefaultExcludes)
+				}
+			},
+		},
+		{
+			name: "invalid copyright header matcher",
+			cfg: Config{
+				Header:                 header,
+				CopyrightHeaderMatcher: "(test",
+			},
+			wantErr: true,
+		},
+		{
+			name: "excludes",
+			cfg: Config{
+				Header: header,
+				Exclude: []string{
+					"/abc/*",
+					"**/testdata/**",
+					"", // empty strings should be ignored
+					"/test/**",
+				},
+			},
+			check: func(t *testing.T, a *analyzer) {
+				t.Helper()
+
+				if l := len(a.excludes); l != 3 {
+					t.Errorf("excludes len = %d, want 3", l)
+				}
+				tests := map[string]bool{
+					"afile.go":              false,
+					"/subdir/test":          false,
+					"/abc/":                 true,
+					"/abc/test":             true,
+					"/testdata/":            true,
+					"/testdata/abc":         true,
+					"/subdir/testdata/test": true,
+					"/test/somefile":        true,
+					"/test/":                true,
+				}
+				for path, want := range tests {
+					var excluded bool
+					for _, exclude := range a.excludes {
+						if !excluded && exclude(path) {
+							excluded = true
+						}
+					}
+					if excluded != want {
+						t.Errorf("exclude(%q) = %v, want %v", path, excluded, want)
+					}
+				}
+			},
+		},
+		{
+			name: "excludes regex",
+			cfg: Config{
+				Header: header,
+				Exclude: []string{
+					"r!(.+)_test\\.go",
+					"", // empty strings should be ignored
+					"r!(dir[0-9])/(test1|test2)\\.go",
+				},
+			},
+			check: func(t *testing.T, a *analyzer) {
+				t.Helper()
+
+				if l := len(a.excludes); l != 2 {
+					t.Errorf("excludes len = %d, want 2", l)
+				}
+				tests := map[string]bool{
+					"afile.go":                   false,
+					"/subdir/test":               false,
+					"/golicenser_test.go":        true,
+					"/subdir/golicenser_test.go": true,
+					"/dir1/test1.go":             true,
+					"/dir2/test2.go":             true,
+					"/subdir/dir1/test1.go":      true,
+					"/dir1/otherfile.go":         false,
+				}
+				for path, want := range tests {
+					var excluded bool
+					for _, exclude := range a.excludes {
+						if !excluded && exclude(path) {
+							excluded = true
+						}
+					}
+					if excluded != want {
+						t.Errorf("exclude(%q) = %v, want %v", path, excluded, want)
+					}
+				}
+			},
+		},
+		{
+			name: "excludes invalid regex",
+			cfg: Config{
+				Header: header,
+				Exclude: []string{
+					"/abc/*",
+					"r!test)",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "excludes invalid doublestar",
+			cfg: Config{
+				Header: header,
+				Exclude: []string{
+					"/abc/*",
+					"**/testdata/*{*",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			a, err := newAnalyzer(tt.cfg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("newAnalyzer err = %v, want %v", err, tt.wantErr)
+			}
+			if tt.check != nil {
+				tt.check(t, a)
+			}
+		})
+	}
 }

@@ -161,7 +161,7 @@ func detectCommentStyle(s string) (CommentStyle, error) {
 	switch {
 	case strings.HasPrefix(s, "// "):
 		return CommentStyleLine, nil
-	case strings.HasSuffix(s, "/*\n"):
+	case strings.HasPrefix(s, "/*\n"):
 		return CommentStyleBlock, nil
 	default:
 		return 0, fmt.Errorf("not a comment: %q", s)
@@ -341,7 +341,8 @@ func (h *Header) Create(filename string) (string, error) {
 
 // Update updates an existing license header if it matches the
 func (h *Header) Update(filename, header string) (string, bool, error) {
-	if cs, err := detectCommentStyle(header); err == nil {
+	cs, err := detectCommentStyle(header)
+	if err == nil {
 		header = cs.Parse(header)
 	}
 	match := h.matcher.FindStringSubmatch(header)
@@ -410,7 +411,9 @@ func (h *Header) Update(filename, header string) (string, bool, error) {
 	if err != nil {
 		return "", false, fmt.Errorf("render header: %w", err)
 	}
-	return h.commentStyle.Render(newHeader), newHeader != header, nil
+	modified := newHeader != header || cs != h.commentStyle
+
+	return h.commentStyle.Render(newHeader), modified, nil
 }
 
 func (h *Header) render(filename, year string) (string, error) {
