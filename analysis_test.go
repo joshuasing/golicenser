@@ -54,6 +54,13 @@ func TestAnalyzer(t *testing.T) {
 			t.Fatalf("NewAnalyzer() err = %v", err)
 		}
 
+		// Test with sources containing build directives.
+		t.Run("builddirective", func(t *testing.T) {
+			t.Parallel()
+			packageDir := filepath.Join(analysistest.TestData(), "src/builddirective/")
+			_ = analysistest.Run(t, packageDir, a)
+		})
+
 		// Different header contains a file with a different license header.
 		// This license header should stay as-is and should not be modified.
 		t.Run("differentheader", func(t *testing.T) {
