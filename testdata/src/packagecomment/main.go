@@ -1,3 +1,3 @@
-// Package packagecomment has a package-level doc comment. This comment should // want "missing license header"
+// Package packagecomment has a package-level doc comment. This comment should
 // not affect the generation of a license header above it.
-package packagecomment
+package packagecomment // want "missing license header"
