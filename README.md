@@ -79,7 +79,7 @@ Flags:
   -c int
         display offending line with this many lines of context (default -1)
   -comment-style string
-        Comment style (line, block) (default "line")
+        Comment style (line, block, starred-block) (default "line")
   -copyright-header-matcher string
         Copyright header matcher regexp (used to detect existence of any copyright header) (default "(?i)copyright")
   -cpuprofile string
@@ -89,7 +89,7 @@ Flags:
   -diff
         with -fix, don't update the files, but print a unified diff
   -exclude string
-        Paths to exclude (doublestar or r!-prefixed regexp, comma-separated) (default "**/testdata/**")
+        Paths to exclude (doublestar or r!-prefixed regexp, comma-separated)
   -fix
         apply all suggested fixes
   -flags
@@ -190,8 +190,20 @@ a file. The current supported options are:
 
 golicenser supports configuring the comment type used for the license headers. The options are:
 
+
 - `line` - C-style line comments (`// test`).
-- `block` - C++-style block comments (`/* test */`)
+- `block` - C++-style block comments (`/* test */`). Example:
+```go
+/*
+test
+*/
+```
+- `starred-block` - Aligned, starred block comments. Example:
+```go
+/*
+ * test
+ */
+```
 
 ### Matchers
 
