@@ -215,10 +215,6 @@ func parseComment(s string) (string, CommentStyle, error) {
 				b.WriteRune('\n')
 			}
 			l = l[2:]
-			if isDirective(l) {
-				// Ignore build directive comments.
-				return "", CommentStyleLine, nil
-			}
 			if len(l) > 1 && l[0] == ' ' {
 				l = l[1:]
 			}
