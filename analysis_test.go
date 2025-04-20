@@ -22,6 +22,7 @@ package golicenser
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -46,6 +47,56 @@ func TestAnalyzer(t *testing.T) {
 				Author:   "Test",
 				YearMode: YearModeThisYear,
 			},
+		}
+		a, err := NewAnalyzer(cfg)
+		if err != nil {
+			t.Fatalf("NewAnalyzer() err = %v", err)
+		}
+
+		// Different header contains a file with a different license header.
+		// This license header should stay as-is and should not be modified.
+		t.Run("differentheader", func(t *testing.T) {
+			t.Parallel()
+			packageDir := filepath.Join(analysistest.TestData(), "src/differentheader/")
+			_ = analysistest.Run(t, packageDir, a)
+		})
+
+		// Empty contains an empty file without any existing license header and
+		// creates a new header.
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+			packageDir := filepath.Join(analysistest.TestData(), "src/empty/")
+			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
+		})
+
+		// Outdated contains a file with a license header which has a different
+		// copyright year. The year should be updated due to YearModeThisYear.
+		t.Run("outdated", func(t *testing.T) {
+			t.Parallel()
+			packageDir := filepath.Join(analysistest.TestData(), "src/outdated/")
+			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
+		})
+
+		// Package comment contains a file with a package-level doc comment and
+		// no license header. A license header should be generated without
+		// modifying the doc comment.
+		t.Run("packagecomment", func(t *testing.T) {
+			t.Parallel()
+			packageDir := filepath.Join(analysistest.TestData(), "src/packagecomment/")
+			_ = analysistest.RunWithSuggestedFixes(t, packageDir, a)
+		})
+	})
+
+	t.Run("concurrency", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := Config{
+			Header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Test",
+				YearMode: YearModeThisYear,
+			},
+			MaxConcurrent: runtime.NumCPU() * 2,
 		}
 		a, err := NewAnalyzer(cfg)
 		if err != nil {
@@ -158,10 +209,6 @@ func TestNewAnalyzer(t *testing.T) {
 			},
 			check: func(t *testing.T, a *analyzer) {
 				t.Helper()
-				if a.cfg.MaxConcurrent != DefaultMaxConcurrent {
-					t.Errorf("MaxConcurrent = %v, want %v",
-						a.cfg.MaxConcurrent, DefaultMaxConcurrent)
-				}
 				if a.cfg.CopyrightHeaderMatcher != DefaultCopyrightHeaderMatcher {
 					t.Errorf("CopyrightHeaderMatcher = %v, want %v",
 						a.cfg.CopyrightHeaderMatcher, DefaultCopyrightHeaderMatcher)

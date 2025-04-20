@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"go/ast"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -41,10 +40,6 @@ const (
 	// "copyright".
 	DefaultCopyrightHeaderMatcher = "(?i)copyright"
 )
-
-// DefaultMaxConcurrent is the default maximum concurrency to use when
-// analyzing files.
-var DefaultMaxConcurrent = runtime.GOMAXPROCS(0) * 2
 
 // Config is the golicenser configuration.
 type Config struct {
@@ -83,9 +78,6 @@ type analyzer struct {
 }
 
 func newAnalyzer(cfg Config) (*analyzer, error) {
-	if cfg.MaxConcurrent < 1 {
-		cfg.MaxConcurrent = DefaultMaxConcurrent
-	}
 	if cfg.CopyrightHeaderMatcher == "" {
 		cfg.CopyrightHeaderMatcher = DefaultCopyrightHeaderMatcher
 	}
@@ -136,20 +128,38 @@ func newAnalyzer(cfg Config) (*analyzer, error) {
 }
 
 func (a *analyzer) run(pass *analysis.Pass) (any, error) {
-	var errg errgroup.Group
-	errg.SetLimit(a.cfg.MaxConcurrent)
+	if a.cfg.MaxConcurrent > 1 {
+		// Process files concurrently.
+		var errg errgroup.Group
+		errg.SetLimit(a.cfg.MaxConcurrent)
 
+		for _, file := range pass.Files {
+			if ast.IsGenerated(file) {
+				// Skip generated files.
+				continue
+			}
+
+			errg.Go(func() error {
+				return a.checkFile(pass, file)
+			})
+		}
+		return nil, errg.Wait()
+	}
+
+	// Run without concurrency.
 	for _, file := range pass.Files {
 		if ast.IsGenerated(file) {
 			// Skip generated files.
 			continue
 		}
 
-		errg.Go(func() error {
-			return a.checkFile(pass, file)
-		})
+		if err := a.checkFile(pass, file); err != nil {
+			return nil, fmt.Errorf("check %s: %w",
+				pass.Fset.File(file.Pos()).Name(), err)
+		}
 	}
-	return nil, errg.Wait()
+
+	return nil, nil
 }
 
 func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
