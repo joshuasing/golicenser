@@ -42,16 +42,9 @@ const (
 	DefaultCopyrightHeaderMatcher = "(?i)copyright"
 )
 
-var (
-	// DefaultMaxConcurrent is the default maximum concurrency to use when
-	// analyzing files.
-	DefaultMaxConcurrent = runtime.GOMAXPROCS(0) * 2
-
-	// DefaultExcludes are the default files to exclude when analyzing.
-	DefaultExcludes = []string{
-		"**/testdata/**", // Exclude testdata directories
-	}
-)
+// DefaultMaxConcurrent is the default maximum concurrency to use when
+// analyzing files.
+var DefaultMaxConcurrent = runtime.GOMAXPROCS(0) * 2
 
 // Config is the golicenser configuration.
 type Config struct {
@@ -95,9 +88,6 @@ func newAnalyzer(cfg Config) (*analyzer, error) {
 	}
 	if cfg.CopyrightHeaderMatcher == "" {
 		cfg.CopyrightHeaderMatcher = DefaultCopyrightHeaderMatcher
-	}
-	if cfg.Exclude == nil {
-		cfg.Exclude = DefaultExcludes
 	}
 
 	a := &analyzer{cfg: cfg}
