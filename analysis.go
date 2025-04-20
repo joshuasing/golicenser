@@ -227,13 +227,10 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 
 // isDirective checks if a comment is a directive.
 func isDirective(s string) bool {
-	if len(s) < 2 || s[0] != '/' || s[1] != '/' {
+	if len(s) < 3 || s[0] != '/' || s[1] != '/' || s[2] == ' ' {
 		return false
 	}
 	s = s[2:]
-	if len(s) < 1 || s[0] == ' ' {
-		return false
-	}
 
 	// Match directives in format: "[a-z0-9]+:[a-z0-9]"
 	colon := strings.Index(s, ":")
