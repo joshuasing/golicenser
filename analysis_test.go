@@ -40,7 +40,6 @@ func TestAnalyzer(t *testing.T) {
 
 	t.Run("simple", func(t *testing.T) {
 		t.Parallel()
-
 		cfg := Config{
 			Header: HeaderOpts{
 				Template: "Copyright (c) {{.year}} {{.author}}",
@@ -192,6 +191,63 @@ func TestAnalyzer(t *testing.T) {
 			packageDir := filepath.Join(analysistest.TestData(), "src/differentmatcher/")
 			_ = analysistest.Run(t, packageDir, a)
 		})
+	})
+
+	t.Run("build directive with any matcher", func(t *testing.T) {
+		t.Parallel()
+		cfg := Config{
+			Header: HeaderOpts{
+				Template: "Copyright (c) {{.year}} {{.author}}",
+				Author:   "Test",
+				YearMode: YearModeThisYear,
+			},
+			CopyrightHeaderMatcher: ".+",
+		}
+		a, err := NewAnalyzer(cfg)
+		if err != nil {
+			t.Fatalf("NewAnalyzer() err = %v", err)
+		}
+
+		packageDir := filepath.Join(analysistest.TestData(), "src/builddirective/")
+		_ = analysistest.Run(t, packageDir, a)
+	})
+
+	t.Run("comment style block", func(t *testing.T) {
+		t.Parallel()
+		cfg := Config{
+			Header: HeaderOpts{
+				Template:     "Copyright (c) {{.year}} {{.author}}",
+				Author:       "Test",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleBlock,
+			},
+		}
+		a, err := NewAnalyzer(cfg)
+		if err != nil {
+			t.Fatalf("NewAnalyzer() err = %v", err)
+		}
+
+		packageDir := filepath.Join(analysistest.TestData(), "src/block/")
+		_ = analysistest.Run(t, packageDir, a)
+	})
+
+	t.Run("comment style starred block", func(t *testing.T) {
+		t.Parallel()
+		cfg := Config{
+			Header: HeaderOpts{
+				Template:     "Copyright (c) {{.year}} {{.author}}",
+				Author:       "Test",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleStarredBlock,
+			},
+		}
+		a, err := NewAnalyzer(cfg)
+		if err != nil {
+			t.Fatalf("NewAnalyzer() err = %v", err)
+		}
+
+		packageDir := filepath.Join(analysistest.TestData(), "src/starred-block/")
+		_ = analysistest.Run(t, packageDir, a)
 	})
 }
 

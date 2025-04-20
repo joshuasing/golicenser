@@ -182,7 +182,7 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 		}
 	}
 
-	if header == "" || !a.headerMatcher.MatchString(header) {
+	if header == "" || isDirective(header) || !a.headerMatcher.MatchString(header) {
 		// License header is missing, generate a new one.
 		newHeader, err := a.header.Create(filename)
 		if err != nil {
@@ -209,8 +209,7 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 	}
 	if modified {
 		pass.Report(analysis.Diagnostic{
-			Pos:     headerPos,
-			End:     headerEnd,
+			Pos:     file.Package,
 			Message: "invalid license header",
 			SuggestedFixes: []analysis.SuggestedFix{{
 				Message: "update license header",
@@ -224,4 +223,28 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 	}
 
 	return nil
+}
+
+// isDirective checks if a comment is a directive.
+func isDirective(s string) bool {
+	if len(s) < 3 || s[0] != '/' || s[1] != '/' || s[2] == ' ' {
+		return false
+	}
+	s = s[2:]
+
+	// Match directives in format: "[a-z0-9]+:[a-z0-9]"
+	colon := strings.Index(s, ":")
+	if colon <= 0 || colon+1 >= len(s) {
+		return false
+	}
+	for i := range colon + 2 {
+		if i == colon {
+			continue
+		}
+		b := s[i]
+		if ('a' > b || b > 'z') && ('0' > b || b > '9') {
+			return false
+		}
+	}
+	return true
 }

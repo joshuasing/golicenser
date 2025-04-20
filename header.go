@@ -127,9 +127,13 @@ const (
 	CommentStyleLine CommentStyle = iota
 
 	// CommentStyleBlock uses C++-style block comments (/* test */).
-	// I strongly discourage using this as it is more idiomatic to use
-	// CommentStyleLine.
 	CommentStyleBlock
+
+	// CommentStyleStarredBlock uses aligned, starred block comments, e.g.
+	//  /*
+	//   * Content
+	//   */
+	CommentStyleStarredBlock
 )
 
 // ParseCommentStyle parses a string representation of a comment style.
@@ -139,6 +143,8 @@ func ParseCommentStyle(s string) (CommentStyle, error) {
 		return CommentStyleLine, nil
 	case CommentStyleBlock.String():
 		return CommentStyleBlock, nil
+	case CommentStyleStarredBlock.String():
+		return CommentStyleStarredBlock, nil
 	default:
 		return 0, fmt.Errorf("invalid comment style: %q", s)
 	}
@@ -151,20 +157,10 @@ func (cs CommentStyle) String() string {
 		return "line"
 	case CommentStyleBlock:
 		return "block"
+	case CommentStyleStarredBlock:
+		return "starred-block"
 	default:
 		return ""
-	}
-}
-
-// detectCommentStyle attempts to detect the comment style from a comment.
-func detectCommentStyle(s string) (CommentStyle, error) {
-	switch {
-	case strings.HasPrefix(s, "// "):
-		return CommentStyleLine, nil
-	case strings.HasPrefix(s, "/*\n"):
-		return CommentStyleBlock, nil
-	default:
-		return 0, fmt.Errorf("not a comment: %q", s)
 	}
 }
 
@@ -184,33 +180,90 @@ func (cs CommentStyle) Render(s string) string {
 		return b.String()
 	case CommentStyleBlock:
 		return "/*\n" + s + "\n*/\n"
+	case CommentStyleStarredBlock:
+		var b bytes.Buffer
+		b.WriteString("/*\n")
+		for _, l := range strings.Split(s, "\n") {
+			b.WriteString(" *")
+			if l != "" {
+				b.WriteRune(' ')
+				b.WriteString(l)
+			}
+			b.WriteRune('\n')
+		}
+		b.WriteString(" */\n")
+		return b.String()
 	default:
 		// Cannot render as a comment.
 		return s
 	}
 }
 
-// Parse parses the comment and returns the uncommented string.
-func (cs CommentStyle) Parse(s string) string {
-	switch cs {
-	case CommentStyleLine:
+// parseComment parses a comment and returns the comment content and detected
+// comment style. An error will be returned if the comment cannot be parsed.
+func parseComment(s string) (string, CommentStyle, error) {
+	s = strings.TrimSpace(s)
+	if len(s) < 2 {
+		return "", 0, fmt.Errorf("invalid comment: %q", s)
+	}
+
+	switch {
+	case s[0] == '/' && s[1] == '/':
 		var b bytes.Buffer
-		for i, l := range strings.Split(strings.TrimSuffix(s, "\n"), "\n") {
+		for i, l := range strings.Split(s, "\n") {
 			if i != 0 {
 				b.WriteRune('\n')
 			}
-			l = strings.TrimPrefix(l, "//")
+			l = l[2:]
 			if len(l) > 1 && l[0] == ' ' {
 				l = l[1:]
 			}
 			b.WriteString(l)
 		}
-		return b.String()
-	case CommentStyleBlock:
-		return strings.TrimSuffix(strings.TrimPrefix(s, "/*\n"), "\n*/\n")
+		return b.String(), CommentStyleLine, nil
+	case strings.HasPrefix(s, "/*") && strings.HasSuffix(s, "*/"):
+		s = strings.TrimSpace(s[2 : len(s)-2])
+		if len(s) < 2 {
+			return s, CommentStyleBlock, nil
+		}
+
+		var b bytes.Buffer
+		var starred bool
+		lines := strings.Split(s, "\n")
+		if l := lines[0]; len(l) > 0 {
+			if l[0] == '*' {
+				l = l[1:]
+				if len(l) > 0 && l[0] == ' ' {
+					l = l[1:]
+				}
+				starred = true
+			}
+			b.WriteString(l)
+		}
+
+		for _, l := range lines[1:] {
+			b.WriteRune('\n')
+			if strings.HasPrefix(l, " *") {
+				starred = true
+				if len(l) > 2 && l[2] == ' ' {
+					b.WriteString(l[3:])
+					continue
+				}
+				b.WriteString(l[2:])
+				continue
+			}
+
+			// Not a starred block comment, fallback to block and just return
+			// the raw comment content.
+			return s, CommentStyleBlock, nil
+		}
+
+		if !starred {
+			return b.String(), CommentStyleBlock, nil
+		}
+		return b.String(), CommentStyleStarredBlock, nil
 	default:
-		// Cannot parse as a comment.
-		return s
+		return "", 0, fmt.Errorf("cannot detect comment type: %q", s)
 	}
 }
 
@@ -341,9 +394,9 @@ func (h *Header) Create(filename string) (string, error) {
 
 // Update updates an existing license header if it matches the
 func (h *Header) Update(filename, header string) (string, bool, error) {
-	cs, err := detectCommentStyle(header)
-	if err == nil {
-		header = cs.Parse(header)
+	header, cs, err := parseComment(header)
+	if err != nil {
+		return "", false, fmt.Errorf("parse header comment: %w", err)
 	}
 	match := h.matcher.FindStringSubmatch(header)
 	if match == nil {
@@ -411,8 +464,7 @@ func (h *Header) Update(filename, header string) (string, bool, error) {
 	if err != nil {
 		return "", false, fmt.Errorf("render header: %w", err)
 	}
-	modified := newHeader != header || cs != h.commentStyle
-
+	modified := newHeader != header || h.commentStyle != cs
 	return h.commentStyle.Render(newHeader), modified, nil
 }
 
