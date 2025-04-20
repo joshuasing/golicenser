@@ -72,7 +72,7 @@ func init() {
 		"Year formatting mode (preserve, preserve-this-year-range, preserve-modified-range, this-year, last-modified, git-range, git-modified-years)")
 	flagSet.StringVar(&commentStyleStr, "comment-style", golicenser.CommentStyle(0).String(),
 		"Comment style (line, block)")
-	flagSet.StringVar(&exclude, "exclude", strings.Join(golicenser.DefaultExcludes, ","),
+	flagSet.StringVar(&exclude, "exclude", "",
 		"Paths to exclude (doublestar or r!-prefixed regexp, comma-separated)")
 	flagSet.IntVar(&maxConcurrent, "max-concurrent", golicenser.DefaultMaxConcurrent,
 		"Maximum concurrent processes to use when processing files")

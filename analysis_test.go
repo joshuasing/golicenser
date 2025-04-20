@@ -22,7 +22,6 @@ package golicenser
 
 import (
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
@@ -47,7 +46,6 @@ func TestAnalyzer(t *testing.T) {
 				Author:   "Test",
 				YearMode: YearModeThisYear,
 			},
-			Exclude: []string{},
 		}
 		a, err := NewAnalyzer(cfg)
 		if err != nil {
@@ -97,7 +95,6 @@ func TestAnalyzer(t *testing.T) {
 				Matcher:  "Copyright \\(c\\) {{.year}} Joshua",
 				YearMode: YearModeThisYear,
 			},
-			Exclude: []string{},
 		}
 		a, err := NewAnalyzer(cfg)
 		if err != nil {
@@ -169,9 +166,6 @@ func TestNewAnalyzer(t *testing.T) {
 					t.Errorf("CopyrightHeaderMatcher = %v, want %v",
 						a.cfg.CopyrightHeaderMatcher, DefaultCopyrightHeaderMatcher)
 				}
-				if !reflect.DeepEqual(a.cfg.Exclude, DefaultExcludes) {
-					t.Errorf("Exclude = %v, want %v", a.cfg.Exclude, DefaultExcludes)
-				}
 			},
 		},
 		{
@@ -188,7 +182,6 @@ func TestNewAnalyzer(t *testing.T) {
 				Header: header,
 				Exclude: []string{
 					"/abc/*",
-					"**/testdata/**",
 					"", // empty strings should be ignored
 					"/test/**",
 				},
@@ -196,19 +189,16 @@ func TestNewAnalyzer(t *testing.T) {
 			check: func(t *testing.T, a *analyzer) {
 				t.Helper()
 
-				if l := len(a.excludes); l != 3 {
-					t.Errorf("excludes len = %d, want 3", l)
+				if l := len(a.excludes); l != 2 {
+					t.Errorf("excludes len = %d, want 2", l)
 				}
 				tests := map[string]bool{
-					"afile.go":              false,
-					"/subdir/test":          false,
-					"/abc/":                 true,
-					"/abc/test":             true,
-					"/testdata/":            true,
-					"/testdata/abc":         true,
-					"/subdir/testdata/test": true,
-					"/test/somefile":        true,
-					"/test/":                true,
+					"afile.go":       false,
+					"/subdir/test":   false,
+					"/abc/":          true,
+					"/abc/test":      true,
+					"/test/somefile": true,
+					"/test/":         true,
 				}
 				for path, want := range tests {
 					var excluded bool
@@ -279,7 +269,7 @@ func TestNewAnalyzer(t *testing.T) {
 				Header: header,
 				Exclude: []string{
 					"/abc/*",
-					"**/testdata/*{*",
+					"**/test/*{*",
 				},
 			},
 			wantErr: true,
