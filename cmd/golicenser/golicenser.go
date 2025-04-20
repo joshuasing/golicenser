@@ -25,6 +25,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -34,6 +35,10 @@ import (
 )
 
 var flagSet flag.FlagSet
+
+// DefaultMaxConcurrent is the default maximum number of goroutines to use when
+// analyzing files.
+var DefaultMaxConcurrent = runtime.GOMAXPROCS(0) * 2
 
 var (
 	template               string
@@ -74,7 +79,7 @@ func init() {
 		"Comment style (line, block)")
 	flagSet.StringVar(&exclude, "exclude", "",
 		"Paths to exclude (doublestar or r!-prefixed regexp, comma-separated)")
-	flagSet.IntVar(&maxConcurrent, "max-concurrent", golicenser.DefaultMaxConcurrent,
+	flagSet.IntVar(&maxConcurrent, "max-concurrent", DefaultMaxConcurrent,
 		"Maximum concurrent processes to use when processing files")
 	flagSet.StringVar(&copyrightHeaderMatcher, "copyright-header-matcher", golicenser.DefaultCopyrightHeaderMatcher,
 		"Copyright header matcher regexp (used to detect existence of any copyright header)")
