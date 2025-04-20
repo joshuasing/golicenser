@@ -804,6 +804,140 @@ SOFTWARE.
 	}
 }
 
+func BenchmarkHeaderUpdate(b *testing.B) {
+	benches := []struct {
+		name   string
+		opts   HeaderOpts
+		header string
+	}{
+		{
+			name: "basic",
+			opts: HeaderOpts{
+				Template:     "Copyright (c) {{.year}} {{.author}}",
+				Author:       "Joshua Sing",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleLine,
+			},
+			header: "// Copyright (c) 2025 Joshua Sing",
+		},
+		{
+			name: "basic outdated",
+			opts: HeaderOpts{
+				Template:     "Copyright (c) {{.year}} {{.author}}",
+				Author:       "Joshua Sing",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleLine,
+			},
+			header: "// Copyright (c) 2001 Joshua Sing",
+		},
+		{
+			name: "line mit",
+			opts: HeaderOpts{
+				Template:     LicenseMIT,
+				Author:       "Joshua Sing",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleLine,
+			},
+			header: `// Copyright (c) 2025 Joshua Sing
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+`,
+		},
+		{
+			name: "block mit",
+			opts: HeaderOpts{
+				Template:     LicenseMIT,
+				Author:       "Joshua Sing",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleBlock,
+			},
+			header: `/*
+Copyright (c) 2025 Joshua Sing
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+`,
+		},
+		{
+			name: "starred block mit",
+			opts: HeaderOpts{
+				Template:     LicenseMIT,
+				Author:       "Joshua Sing",
+				YearMode:     YearModeThisYear,
+				CommentStyle: CommentStyleBlock,
+			},
+			header: `/*
+ * Copyright (c) 2025 Joshua Sing
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+`,
+		},
+	}
+	for _, bb := range benches {
+		b.Run(bb.name, func(b *testing.B) {
+			h, err := NewHeader(bb.opts)
+			if err != nil {
+				b.Fatalf("NewHeader err = %v", err)
+			}
+			b.ResetTimer()
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					_, _, _ = h.Update("test", bb.header)
+				}
+			})
+		})
+	}
+}
+
 func TestHeaderMatcher(t *testing.T) {
 	t.Parallel()
 
