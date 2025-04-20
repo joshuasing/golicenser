@@ -1,0 +1,5 @@
+// Copyright (c) 2025 Test
+
+//go:build !foo
+
+package main // want "missing license header"

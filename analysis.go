@@ -179,7 +179,7 @@ func (a *analyzer) checkFile(pass *analysis.Pass, file *ast.File) error {
 			return fmt.Errorf("create %s header: %w", filename, err)
 		}
 		pass.Report(analysis.Diagnostic{
-			Pos:      file.FileStart,
+			Pos:      file.Package,
 			Category: analyzerName,
 			Message:  "missing license header",
 			SuggestedFixes: []analysis.SuggestedFix{{
