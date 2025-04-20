@@ -133,6 +133,127 @@ func TestParseCommentStyle(t *testing.T) {
 	}
 }
 
+func TestParseComment(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        string
+		want      string
+		wantStyle CommentStyle
+		wantErr   bool
+	}{
+		{
+			name:      "line simple",
+			in:        "// Hello world\n",
+			want:      "Hello world",
+			wantStyle: CommentStyleLine,
+		},
+		{
+			name:      "line multi-line",
+			in:        "// Line 1\n// Line 2\n// Line 3\n",
+			want:      "Line 1\nLine 2\nLine 3",
+			wantStyle: CommentStyleLine,
+		},
+		{
+			name:      "line with blank line",
+			in:        "// Line 1\n//\n// Line 2 after blank\n",
+			want:      "Line 1\n\nLine 2 after blank",
+			wantStyle: CommentStyleLine,
+		},
+		{
+			name:      "line with leading space",
+			in:        "//  Line 1\n//   Line 2\n",
+			want:      " Line 1\n  Line 2", // one leading space then two spaces
+			wantStyle: CommentStyleLine,
+		},
+		{
+			name:      "block",
+			in:        "/*\nHello world\n*/\n",
+			want:      "Hello world",
+			wantStyle: CommentStyleBlock,
+		},
+		{
+			name:      "block singleline",
+			in:        "/* Hello world */\n",
+			want:      "Hello world",
+			wantStyle: CommentStyleBlock,
+		},
+		{
+			name:      "block multiline",
+			in:        "/*\nLine 1\nLine 2\n*/\n",
+			want:      "Line 1\nLine 2",
+			wantStyle: CommentStyleBlock,
+		},
+		{
+			name:      "block singleline no padding",
+			in:        "/*Hello world*/\n",
+			want:      "Hello world",
+			wantStyle: CommentStyleBlock,
+		},
+		{
+			name:      "starred block",
+			in:        "/*\n * Hello world\n */\n",
+			want:      "Hello world",
+			wantStyle: CommentStyleStarredBlock,
+		},
+		{
+			name:      "starred block multiline",
+			in:        "/*\n * Line 1\n * Line 2\n */\n",
+			want:      "Line 1\nLine 2",
+			wantStyle: CommentStyleStarredBlock,
+		},
+		{
+			name:      "starred block no spaces",
+			in:        "/*\n *test\n *test 2\n */\n",
+			want:      "test\ntest 2",
+			wantStyle: CommentStyleStarredBlock,
+		},
+		{
+			name: "starred block real",
+			in: `/*
+ * Copyright 2013 The Go Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+`,
+			want: `Copyright 2013 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.`,
+			wantStyle: CommentStyleStarredBlock,
+		},
+		{
+			name:      "starred block using first line",
+			in:        "/* Test\n * Test 2\n */",
+			want:      "Test\nTest 2",
+			wantStyle: CommentStyleStarredBlock,
+		},
+		{
+			name:    "invalid block",
+			in:      "/* test",
+			wantErr: true,
+		},
+		{
+			name:    "random string",
+			in:      "hello world",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, cs, err := parseComment(tt.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseComment(%q) err = %v, want %v", tt.in, err, tt.wantErr)
+			}
+
+			if got != tt.want {
+				t.Errorf("parseComment(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+			if cs != tt.wantStyle {
+				t.Errorf("parseComment(%q) style = %s, want %s", tt.in, cs, tt.wantStyle)
+			}
+		})
+	}
+}
+
 func TestCommentStyleRender(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -176,63 +297,28 @@ func TestCommentStyleRender(t *testing.T) {
 			want:  "/*\nLine 1\nLine 2\n*/\n",
 			style: CommentStyleBlock,
 		},
+		{
+			name:  "starred block",
+			in:    "Hello world",
+			want:  "/*\n * Hello world\n */\n",
+			style: CommentStyleStarredBlock,
+		},
+		{
+			name: "starred block multiline",
+			in:   "Line 1\nLine 2\nLine 3",
+			want: `/*
+ * Line 1
+ * Line 2
+ * Line 3
+ */
+`,
+			style: CommentStyleStarredBlock,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.style.Render(tt.in); got != tt.want {
 				t.Errorf("CommentStyle(%+v).Render(%q) = %q, want %q",
-					tt.style, tt.in, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCommentStyleParse(t *testing.T) {
-	tests := []struct {
-		name  string
-		in    string
-		want  string
-		style CommentStyle
-	}{
-		{
-			name:  "line simple",
-			in:    "// Hello world\n",
-			want:  "Hello world",
-			style: CommentStyleLine,
-		},
-		{
-			name:  "line multi-line",
-			in:    "// Line 1\n// Line 2\n// Line 3\n",
-			want:  "Line 1\nLine 2\nLine 3",
-			style: CommentStyleLine,
-		},
-		{
-			name:  "line with blank line",
-			in:    "// Line 1\n//\n// Line 2 after blank\n",
-			want:  "Line 1\n\nLine 2 after blank",
-			style: CommentStyleLine,
-		},
-		{
-			name:  "line with leading space",
-			in:    "//  Line 1\n//   Line 2\n",
-			want:  " Line 1\n  Line 2", // one leading space then two spaces
-			style: CommentStyleLine,
-		},
-		{
-			in:    "/*\nHello world\n*/\n",
-			want:  "Hello world",
-			style: CommentStyleBlock,
-		},
-		{
-			in:    "/*\nLine 1\nLine 2\n*/\n",
-			want:  "Line 1\nLine 2",
-			style: CommentStyleBlock,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.style.Parse(tt.in); got != tt.want {
-				t.Errorf("CommentStyle(%+v).Parse(%q) = %q, want %q",
 					tt.style, tt.in, got, tt.want)
 			}
 		})
@@ -679,7 +765,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-`,
+*/`,
 			want: `// Copyright (c) 2025 Joshua Sing
 //
 // Permission to use, copy, modify, and distribute this software for any
